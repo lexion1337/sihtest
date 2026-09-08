@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Skill Drift Analyzer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Chart.js 4.4.1 UMD, vendored into static/ on 2026-09-09.
+     Deliberately NOT a CDN link: the demo runs on venue Wi-Fi shared by ~50
+     teams, and the dashboard must render with no internet at all. Nothing on
+     this page loads from an external host. -->
+<script src="/static/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0f1216; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
