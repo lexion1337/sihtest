@@ -1,0 +1,22 @@
+# --- Python ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# --- Derived artifacts ---
+# skills.db is rebuilt from data/*.jsonl by pipeline.py in seconds.
+# The JSONL files ARE committed: reproducibility is part of the pitch.
+*.db
+*.sqlite3
+
+# Raw scrape/fetch cache (see scraper.py TODO). Can get large; keep it local.
+data/raw/
+
+# --- Secrets / local config ---
+.claude.json
+.env
+
+# --- OS ---
+.DS_Store
+Thumbs.db
