@@ -167,24 +167,49 @@ def roles(con):
 
 
 def _quarter_totals(con, role):
+    """Postings per quarter for a role, EXCLUDING rows whose date is only a
+    last-modified timestamp (see ingest_ats.py). Those rows cannot be binned
+    by quarter without asserting something the source never told us."""
     rows = con.execute(
-        "SELECT quarter, COUNT(*) AS n FROM postings WHERE role = ? "
+        "SELECT quarter, COUNT(*) AS n FROM postings "
+        "WHERE role = ? AND ts_eligible = 1 "
         "GROUP BY quarter ORDER BY quarter", (role,)).fetchall()
     return [(r["quarter"], r["n"]) for r in rows]
+
+
+def ts_exclusions(con, role=None):
+    """What the time series is leaving out, and why. Surfaced in the UI."""
+    sql = ("SELECT source, date_kind, COUNT(*) AS n FROM postings "
+           "WHERE ts_eligible = 0")
+    args = []
+    if role:
+        sql += " AND role = ?"
+        args.append(role)
+    sql += " GROUP BY source, date_kind ORDER BY n DESC"
+    rows = [{"source": r["source"], "date_kind": r["date_kind"], "n": r["n"]}
+            for r in con.execute(sql, args)]
+    return {"n_excluded": sum(r["n"] for r in rows), "by_source": rows}
 
 
 def drift(con, role):
     """Full per-skill quarterly series and summary for one role."""
     totals = _quarter_totals(con, role)
     if not totals:
-        return {"role": role, "quarters": [], "skills": []}
+        return {"role": role, "quarters": [], "skills": [], "n_postings": 0,
+                "excluded_from_time_series": ts_exclusions(con, role),
+                "latest_quarter": None, "latest_n": 0, "baseline_quarters": [],
+                "thresholds": {"low_confidence_n": LOW_CONFIDENCE_N,
+                               "trend_delta_pp": TREND_DELTA_PP,
+                               "gap_min_share_pct": GAP_MIN_SHARE_PCT,
+                               "alpha": ALPHA}}
     qs = [q for q, _n in totals]
     n_by_q = dict(totals)
 
     counts = {}
     for r in con.execute(
             "SELECT skill, quarter, COUNT(DISTINCT posting_id) AS c "
-            "FROM posting_skills WHERE role = ? GROUP BY skill, quarter", (role,)):
+            "FROM posting_skills WHERE role = ? AND ts_eligible = 1 "
+            "GROUP BY skill, quarter", (role,)):
         counts.setdefault(r["skill"], {})[r["quarter"]] = r["c"]
 
     latest_q = qs[-1]
@@ -248,6 +273,7 @@ def drift(con, role):
     out.sort(key=lambda s: -s["latest_share"])
     return {
         "role": role,
+        "excluded_from_time_series": ts_exclusions(con, role),
         "quarters": [{"quarter": q, "n": n, "low_confidence": n < LOW_CONFIDENCE_N}
                      for q, n in totals],
         "n_postings": sum(n for _q, n in totals),
@@ -361,6 +387,8 @@ def overview(con):
         "sources": src,
         "source_files": json.loads(meta.get("source_files", "[]")),
         "provenance": provenance(src),
+        "n_ts_excluded": int(meta.get("n_ts_excluded", 0)),
+        "ts_excluded_by_source": json.loads(meta.get("ts_excluded_by_source", "{}")),
         "n_synthetic": split_counts(src)[0],
         "n_real": split_counts(src)[1],
         # Kept for backward compatibility with anything reading the old field.

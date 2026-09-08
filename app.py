@@ -65,6 +65,9 @@ def api_drift(role: str = Query(...),
     return {
         "role": d["role"],
         "n_postings": d["n_postings"],
+        # Rows kept out of the quarterly bins because their date is only a
+        # last-modified timestamp. The UI renders this as a design decision.
+        "excluded_from_time_series": d["excluded_from_time_series"],
         "quarters": d["quarters"],
         "latest_quarter": d["latest_quarter"],
         "latest_n": d["latest_n"],

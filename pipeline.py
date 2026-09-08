@@ -48,7 +48,13 @@ CREATE TABLE postings (
     posted_date  TEXT NOT NULL,   -- ISO yyyy-mm-dd
     quarter      TEXT NOT NULL,   -- yyyy-Qn, derived from posted_date
     role         TEXT NOT NULL,
-    source       TEXT NOT NULL,   -- "synthetic" for seed data, else the scrape source
+    source       TEXT NOT NULL,   -- "synthetic" for seed data, else the ingest source
+    -- The date split. Greenhouse only exposes a last-modified timestamp, which
+    -- cannot support a quarterly bin (see ingest_ats.py). Such records are
+    -- still ingested and still feed skill extraction; they are excluded from
+    -- the time series and analysis.py enforces that.
+    date_kind    TEXT NOT NULL,   -- created | published | modified
+    ts_eligible  INTEGER NOT NULL,-- 1 = may appear in quarterly bins
     n_skills     INTEGER NOT NULL
 );
 
@@ -59,6 +65,7 @@ CREATE TABLE posting_skills (
     posted_date  TEXT NOT NULL,
     quarter      TEXT NOT NULL,
     source       TEXT NOT NULL,
+    ts_eligible  INTEGER NOT NULL,
     PRIMARY KEY (posting_id, skill),
     FOREIGN KEY (posting_id) REFERENCES postings(id)
 );
@@ -163,17 +170,28 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
         # Duplicate ids were already rejected across corpora above.
         q = quarter_of(rec["posted_date"])
         found = skills_mod.extract_skills(rec["description_text"])
+        # Seed records predate the date-split fields; their posted_date is a
+        # true creation date by construction, so they default to eligible.
+        date_kind = rec.get("date_kind", "created")
+        eligible = 1 if rec.get("time_series_eligible", True) else 0
         p_rows.append((rec["id"], rec["title"], rec["company"], rec["location"],
-                       rec["posted_date"], q, rec["role"], rec["source"], len(found)))
+                       rec["posted_date"], q, rec["role"], rec["source"],
+                       date_kind, eligible, len(found)))
         for sk in found:
-            s_rows.append((rec["id"], sk, rec["role"], rec["posted_date"], q, rec["source"]))
+            s_rows.append((rec["id"], sk, rec["role"], rec["posted_date"], q,
+                           rec["source"], eligible))
 
-    con.executemany("INSERT INTO postings VALUES (?,?,?,?,?,?,?,?,?)", p_rows)
-    con.executemany("INSERT INTO posting_skills VALUES (?,?,?,?,?,?)", s_rows)
+    con.executemany("INSERT INTO postings VALUES (?,?,?,?,?,?,?,?,?,?,?)", p_rows)
+    con.executemany("INSERT INTO posting_skills VALUES (?,?,?,?,?,?,?)", s_rows)
 
     sources = {}
     for r in p_rows:
         sources[r[7]] = sources.get(r[7], 0) + 1
+    n_excluded = sum(1 for r in p_rows if r[9] == 0)
+    excluded_by_source = {}
+    for r in p_rows:
+        if r[9] == 0:
+            excluded_by_source[r[7]] = excluded_by_source.get(r[7], 0) + 1
     meta = {
         "built_at": dt.datetime.now().isoformat(timespec="seconds"),
         "n_postings": str(len(p_rows)),
@@ -181,6 +199,8 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
         "skill_dict_size": str(skills_mod.skill_count()),
         "sources": json.dumps(sources),
         "source_files": json.dumps([os.path.basename(p) for p, _n, _s in per_file]),
+        "n_ts_excluded": str(n_excluded),
+        "ts_excluded_by_source": json.dumps(excluded_by_source),
         "date_min": min(r[4] for r in p_rows) if p_rows else "",
         "date_max": max(r[4] for r in p_rows) if p_rows else "",
     }
@@ -198,6 +218,9 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
         print("  skill mentions  : %d (%.1f per posting)"
               % (len(s_rows), len(s_rows) / max(1, len(p_rows))))
         print("  source counts   : %s" % sources)
+        if n_excluded:
+            print("  time-series     : %d rows EXCLUDED (modified-date only) %s"
+                  % (n_excluded, excluded_by_source))
         print("  date range      : %s .. %s" % (meta["date_min"], meta["date_max"]))
     return meta
 

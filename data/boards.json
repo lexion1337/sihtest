@@ -1,0 +1,18 @@
+{
+  "_note": "Input list for ingest_ats.py. Adding a board is a one-line edit here, not a code change. Tokens are the public job-board slugs these companies publish so their careers pages can be embedded elsewhere; the endpoints are documented and unauthenticated. Keep `verified` honest: set it true only once a fetch has actually returned jobs.",
+  "_endpoints": {
+    "greenhouse": "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true",
+    "lever": "https://api.lever.co/v0/postings/{token}?mode=json",
+    "ashby": "https://api.ashbyhq.com/posting-api/job-board/{token}?includeCompensation=false"
+  },
+  "_date_semantics": {
+    "lever": "createdAt is a true creation timestamp -> eligible for quarterly time bins",
+    "ashby": "publishedAt is a true publication timestamp -> eligible for quarterly time bins",
+    "greenhouse": "updated_at is LAST-MODIFIED, not creation -> text source only, excluded from time bins"
+  },
+  "boards": [
+    { "ats": "greenhouse", "token": "postman",  "company": "Postman",  "verified": true },
+    { "ats": "lever",      "token": "meesho",   "company": "Meesho",   "verified": true },
+    { "ats": "lever",      "token": "cred",     "company": "CRED",     "verified": true }
+  ]
+}
