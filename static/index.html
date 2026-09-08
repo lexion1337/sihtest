@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skill Drift Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#161b22; --panel2:#1c232c; --line:#2a323d;
+    --ink:#e6edf3; --dim:#9aa7b4; --dimmer:#6e7d8d;
+    --accent:#4da3ff; --warn:#f0a839; --bad:#f2695c; --good:#4cc38a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 60px}
+
+  /* ---- persistent demo-data banner: never remove while source=synthetic ---- */
+  #banner{background:var(--warn);color:#1a1205;font-weight:600;text-align:center;
+          padding:9px 16px;letter-spacing:.2px;position:sticky;top:0;z-index:50}
+  #banner .sub{font-weight:500;color:#5c4206}
+
+  header{padding:26px 0 14px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:-.2px}
+  .ps{color:var(--dim);font-size:13px}
+
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+         gap:10px;margin:18px 0 22px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 13px}
+  .stat .k{color:var(--dimmer);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  .stat .v{font-size:19px;font-weight:600;margin-top:3px}
+  .stat .n{color:var(--dim);font-size:11px}
+
+  .controls{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+  label{display:block;font-size:11px;color:var(--dimmer);text-transform:uppercase;
+        letter-spacing:.6px;margin-bottom:5px}
+  select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+         border-radius:6px;padding:8px 11px;font-size:14px;min-width:190px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:18px;margin-bottom:20px}
+  .card h2{margin:0 0 3px;font-size:15px}
+  .card .hint{color:var(--dim);font-size:12px;margin:0 0 14px}
+  .chartbox{position:relative;height:400px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dimmer);font-size:11px;text-transform:uppercase;
+     letter-spacing:.5px;font-weight:600;padding:8px 9px;border-bottom:1px solid var(--line);
+     white-space:nowrap}
+  td{padding:9px;border-bottom:1px solid #202832;vertical-align:top}
+  tbody tr:hover{background:#1b222b;cursor:pointer}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .skill{font-weight:600}
+  .sub{color:var(--dim);font-size:11px}
+
+  .tag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;
+       font-weight:600;white-space:nowrap}
+  .t-rising{background:rgba(76,195,138,.14);color:var(--good)}
+  .t-declining{background:rgba(242,105,92,.14);color:var(--bad)}
+  .t-stable{background:rgba(154,167,180,.14);color:var(--dim)}
+  .t-sig{background:rgba(77,163,255,.15);color:var(--accent)}
+  .t-nosig{background:rgba(240,168,57,.15);color:var(--warn)}
+  .t-low{background:rgba(240,168,57,.15);color:var(--warn)}
+  .t-syn{background:rgba(240,168,57,.18);color:var(--warn)}
+
+  .note{background:var(--panel2);border-left:3px solid var(--warn);border-radius:0 6px 6px 0;
+        padding:10px 13px;color:var(--dim);font-size:12.5px;margin:0 0 16px}
+  .note b{color:var(--ink)}
+
+  #evidence{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:100}
+  #evidence.open{display:block}
+  #evpanel{position:absolute;right:0;top:0;bottom:0;width:min(620px,94vw);
+           background:var(--panel);border-left:1px solid var(--line);
+           overflow-y:auto;padding:20px}
+  #evpanel h3{margin:0 0 4px;font-size:15px}
+  #evclose{position:absolute;right:16px;top:14px;background:none;border:0;
+           color:var(--dim);font-size:22px;cursor:pointer;line-height:1}
+  .ev{border:1px solid var(--line);border-radius:7px;padding:10px 12px;margin-bottom:9px;
+      background:var(--panel2)}
+  .ev .t{font-weight:600;font-size:13px}
+  .ev pre{white-space:pre-wrap;font:11.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+          color:var(--dim);margin:8px 0 0;max-height:190px;overflow:auto}
+
+  footer{color:var(--dimmer);font-size:12px;border-top:1px solid var(--line);
+         padding-top:16px;margin-top:8px}
+  footer code{color:var(--dim)}
+  .err{color:var(--bad)}
+</style>
+</head>
+<body>
+
+<div id="banner">
+  DEMO DATA — synthetic, pending live scrape.
+  <span class="sub" id="bannerSub"></span>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>Skill Drift Analyzer</h1>
+    <div class="ps">
+      What employers actually asked for, per quarter, measured against what the
+      syllabus actually teaches. &nbsp;·&nbsp; SIH26134 — Government of Maharashtra
+    </div>
+  </header>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="controls">
+    <div>
+      <label for="role">Role</label>
+      <select id="role"></select>
+    </div>
+    <div>
+      <label for="rank">Chart ranking</label>
+      <select id="rank">
+        <option value="latest">Top 8 by share in latest quarter</option>
+        <option value="change">Top 8 biggest movers</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Share of postings mentioning each skill, by quarter</h2>
+    <p class="hint" id="chartHint"></p>
+    <div class="note" id="lowNote" style="display:none"></div>
+    <div class="chartbox"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2 id="gapTitle">Curriculum gap</h2>
+    <p class="hint" id="gapHint"></p>
+    <div class="note" id="gapNote"></div>
+    <div style="overflow-x:auto">
+      <table id="gapTable">
+        <thead><tr>
+          <th>Skill</th>
+          <th class="num">Share of latest quarter</th>
+          <th class="num">Sample</th>
+          <th class="num">95% CI</th>
+          <th class="num">vs baseline</th>
+          <th>Trend</th>
+          <th>Evidence strength</th>
+          <th>First seen</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:12px">Click any row to read the actual postings counted in that number.</p>
+  </div>
+
+  <div class="card">
+    <h2>Demanded and already taught</h2>
+    <p class="hint" id="coveredHint"></p>
+    <div style="overflow-x:auto">
+      <table id="covTable">
+        <thead><tr>
+          <th>Skill</th><th class="num">Share of latest quarter</th><th class="num">Sample</th>
+          <th class="num">vs baseline</th><th>Trend</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer id="method"></footer>
+</div>
+
+<div id="evidence"><div id="evpanel">
+  <button id="evclose">&times;</button>
+  <h3 id="evtitle"></h3>
+  <p class="sub" id="evsub"></p>
+  <div id="evlist"></div>
+</div></div>
+
+<script>
+const COLORS = ["#4da3ff","#4cc38a","#f0a839","#f2695c","#b58cf0","#4fd1c5","#f79bd3","#a3b18a"];
+let chart = null, OV = null, GAP = null;
+
+const $ = s => document.querySelector(s);
+const pct = v => v.toFixed(1) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function get(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(url + " -> " + r.status);
+  return r.json();
+}
+
+function trendTag(t){ return `<span class="tag t-${t}">${t}</span>`; }
+function sigTag(sig, p){
+  return sig
+    ? `<span class="tag t-sig">significant</span> <span class="sub">p=${p.toFixed(3)}</span>`
+    : `<span class="tag t-nosig">not significant</span> <span class="sub">p=${p.toFixed(3)}</span>`;
+}
+
+/* ------------------------------------------------------------------ boot */
+async function boot(){
+  OV = await get("/api/overview");
+
+  const synth = OV.sources.synthetic || 0;
+  const real = OV.n_postings - synth;
+  $("#bannerSub").textContent =
+    ` ${synth} of ${OV.n_postings} postings are generated seed records`
+    + (real ? ` · ${real} from live sources` : " · no live records yet")
+    + ` · scraper not implemented`;
+  if(!OV.all_synthetic && synth === 0){
+    $("#banner").style.background = "var(--good)";
+    $("#banner").firstChild.textContent = "LIVE DATA — ";
+  }
+
+  $("#strip").innerHTML = [
+    ["Postings measured", OV.n_postings, `${OV.date_min} → ${OV.date_max}`],
+    ["Skill terms tracked", OV.skill_dict_size, "curated dictionary, offline match"],
+    ["Skill mentions", OV.n_skill_mentions,
+      `${(OV.n_skill_mentions/OV.n_postings).toFixed(1)} per posting`],
+    ["Curriculum", OV.curriculum.n_skills_taught + " skills",
+      `${OV.curriculum.n_subjects} subjects · ${OV.curriculum.source}`],
+    ["Low-confidence cutoff", "n < " + OV.thresholds.low_confidence_n,
+      "buckets below this are flagged"],
+  ].map(([k,v,n]) =>
+    `<div class="stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>
+     <div class="n">${esc(n)}</div></div>`).join("");
+
+  const sel = $("#role");
+  sel.innerHTML = OV.roles.map(r => {
+    const n = (OV.by_role.find(x => x.role === r) || {}).n || 0;
+    return `<option value="${esc(r)}">${esc(r)} (${n} postings)</option>`;
+  }).join("");
+  sel.value = OV.roles.includes("Data Analyst") ? "Data Analyst" : OV.roles[0];
+
+  sel.onchange = render;
+  $("#rank").onchange = render;
+  $("#evclose").onclick = () => $("#evidence").classList.remove("open");
+  $("#evidence").onclick = e => { if(e.target.id === "evidence") $("#evidence").classList.remove("open"); };
+
+  $("#method").innerHTML = `
+    <p><b>How every number here is produced.</b>
+    Each posting's description text is matched against a curated dictionary of
+    ${OV.skill_dict_size} skill terms and their aliases (regex, offline, no model).
+    <code>share</code> for a skill in a quarter is
+    <code>postings mentioning it ÷ all postings for that role in that quarter</code> —
+    the denominator is always postings, never mentions.
+    <code>vs baseline</code> compares the latest quarter against the pooled first two
+    quarters. <code>Trend</code> needs a move of at least
+    ${OV.thresholds.trend_delta_pp} percentage points.
+    <code>Significant</code> is a two-proportion z-test at p &lt; ${OV.thresholds.alpha};
+    a trend that fails it is a direction, not a finding.
+    Confidence intervals are 95% Wilson score intervals.
+    Nothing is smoothed, imputed or extrapolated.</p>
+    <p><b>Curriculum source.</b> ${esc(OV.curriculum.source_note)}</p>
+    <p><b>Data source.</b> The postings are generated seed records
+    (<code>tools/gen_seed.py</code>), not observed market data, and no claim on this
+    page describes the real Indian job market yet.
+    <code>scraper.fetch()</code> is a stub that raises rather than returning
+    fabricated rows. Built ${esc(OV.built_at)}.</p>`;
+
+  render();
+}
+
+/* ---------------------------------------------------------------- render */
+// Guards against out-of-order responses: if the user changes role while a
+// fetch is in flight, the older response must not overwrite the newer one.
+let renderSeq = 0;
+
+async function render(){
+  const seq = ++renderSeq;
+  const role = $("#role").value, rank = $("#rank").value;
+  const [d, gap] = await Promise.all([
+    get(`/api/drift?role=${encodeURIComponent(role)}&top=8&rank_by=${rank}`),
+    get(`/api/gap?role=${encodeURIComponent(role)}`)
+  ]);
+  if(seq !== renderSeq) return;   // a newer render started; discard this result
+  GAP = gap;
+  drawChart(d);
+  drawGap(gap);
+}
+
+function drawChart(d){
+  const labels = d.quarters.map(q => q.quarter);
+  const thin = d.quarters.filter(q => q.low_confidence);
+
+  $("#chartHint").textContent =
+    `${d.role} · ${d.n_postings} postings · ${d.n_skills_total} distinct skills measured · `
+    + (d.rank_by === "change" ? "showing the 8 biggest movers" : "showing the 8 most-demanded skills")
+    + ` · baseline window ${d.baseline_quarters.join(" + ")}`;
+
+  const note = $("#lowNote");
+  if(thin.length){
+    note.style.display = "";
+    note.innerHTML = `<b>Dashed segments are low-confidence.</b> `
+      + `${thin.length} of ${d.quarters.length} quarters have fewer than `
+      + `${d.thresholds.low_confidence_n} postings and cannot support a percentage claim on their own: `
+      + thin.map(q => `${q.quarter} (n=${q.n})`).join(", ")
+      + `. Sample sizes per quarter: ` + d.quarters.map(q => `${q.quarter}=${q.n}`).join(", ") + ".";
+  } else { note.style.display = "none"; }
+
+  const datasets = d.top.map((s, i) => ({
+    label: s.skill,
+    data: s.series.map(p => p.share),
+    meta: s.series,
+    borderColor: COLORS[i % COLORS.length],
+    backgroundColor: COLORS[i % COLORS.length],
+    borderWidth: 2, tension: .25,
+    pointRadius: s.series.map(p => p.low_confidence ? 2.5 : 4),
+    pointHoverRadius: 6,
+    segment: {
+      // A segment is dashed if either endpoint sits in a thin bucket.
+      borderDash: c => (c.p0.raw !== undefined && d.quarters[c.p0.parsed.x].low_confidence)
+                    || (d.quarters[c.p1.parsed.x] && d.quarters[c.p1.parsed.x].low_confidence)
+                    ? [5,4] : undefined
+    }
+  }));
+
+  if(chart) chart.destroy();
+  chart = new Chart($("#chart"), {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:"nearest", intersect:false },
+      plugins:{
+        legend:{ labels:{ color:"#c6d0da", boxWidth:12, font:{size:12} } },
+        tooltip:{
+          callbacks:{
+            title: items => {
+              const q = d.quarters[items[0].dataIndex];
+              return `${q.quarter} — ${q.n} postings`
+                   + (q.low_confidence ? ` (below n=${d.thresholds.low_confidence_n}, low confidence)` : "");
+            },
+            label: it => {
+              const p = it.dataset.meta[it.dataIndex];
+              return ` ${it.dataset.label}: ${p.share.toFixed(1)}%  (${p.count} of ${p.n} postings)`;
+            }
+          }
+        }
+      },
+      scales:{
+        y:{ beginAtZero:true, max:100, ticks:{ color:"#8b98a5", callback:v => v + "%" },
+            grid:{ color:"#222a34" },
+            title:{ display:true, text:"share of postings mentioning the skill", color:"#6e7d8d" } },
+        x:{ ticks:{ color:"#8b98a5" }, grid:{ color:"#1c232c" } }
+      }
+    }
+  });
+}
+
+function drawGap(g){
+  $("#gapTitle").textContent =
+    `Curriculum gap — ${g.role}: rising, in ≥${g.criteria.min_latest_share_pct}% of `
+    + `${g.latest_quarter} postings, and absent from the syllabus`;
+  $("#gapHint").textContent =
+    `${g.n_gaps} candidate gaps, of which ${g.n_gaps_significant} survive a `
+    + `p<${g.criteria.alpha} significance test. Sorted by share. `
+    + `Denominator for every row: ${g.latest_n} ${g.role} postings in ${g.latest_quarter}.`;
+
+  $("#gapNote").innerHTML = g.low_confidence
+    ? `<b>Read this table as a signal, not a measurement.</b> The latest quarter has only
+       ${g.latest_n} postings, below the n=${OV.thresholds.low_confidence_n} threshold, so every
+       percentage here carries a wide confidence interval. Rows marked
+       <span class="tag t-nosig">not significant</span> could be sampling noise.`
+    : `<b>Sample size:</b> ${g.latest_n} postings in ${g.latest_quarter}. Rows marked
+       <span class="tag t-nosig">not significant</span> did not pass the p&lt;${g.criteria.alpha}
+       test against the baseline window — the direction is suggestive, the sample is not yet
+       big enough to call it. Widening the corpus is the fix, not a lower threshold.`;
+
+  const tb = $("#gapTable tbody");
+  tb.innerHTML = g.gaps.length ? g.gaps.map(r => `
+    <tr data-skill="${esc(r.skill)}" data-q="${esc(r.latest_quarter)}">
+      <td><span class="skill">${esc(r.skill)}</span><div class="sub">${esc(r.category)}</div></td>
+      <td class="num" style="font-size:15px;font-weight:600">${pct(r.latest_share)}</td>
+      <td class="num">${r.latest_count} of ${r.latest_n}<div class="sub">postings</div></td>
+      <td class="num">${pct(r.latest_ci95[0])} – ${pct(r.latest_ci95[1])}</td>
+      <td class="num">${r.change_pp >= 0 ? "+" : ""}${r.change_pp.toFixed(1)} pp
+          <div class="sub">from ${pct(r.baseline_share)}</div></td>
+      <td>${trendTag(r.trend)}</td>
+      <td>${sigTag(r.significant, r.p_value)}
+          ${r.low_confidence ? '<div><span class="tag t-low">thin bucket</span></div>' : ""}</td>
+      <td>${esc(r.first_seen || "—")}</td>
+    </tr>`).join("")
+    : `<tr><td colspan="8" class="sub">No skill met all three criteria for this role.</td></tr>`;
+
+  tb.querySelectorAll("tr[data-skill]").forEach(tr => {
+    tr.onclick = () => showEvidence(g.role, tr.dataset.skill, tr.dataset.q);
+  });
+
+  $("#coveredHint").textContent =
+    `${g.covered.length} skills are in ≥${g.criteria.min_latest_share_pct}% of `
+    + `${g.latest_quarter} postings AND already appear in the curriculum. `
+    + `Shown so the gap table above can be read against what the syllabus does cover.`;
+  $("#covTable tbody").innerHTML = g.covered.map(r => `
+    <tr data-skill="${esc(r.skill)}" data-q="${esc(r.latest_quarter)}">
+      <td><span class="skill">${esc(r.skill)}</span><div class="sub">${esc(r.category)}</div></td>
+      <td class="num">${pct(r.latest_share)}</td>
+      <td class="num">${r.latest_count} of ${r.latest_n}</td>
+      <td class="num">${r.change_pp >= 0 ? "+" : ""}${r.change_pp.toFixed(1)} pp</td>
+      <td>${trendTag(r.trend)}</td>
+    </tr>`).join("");
+  $("#covTable tbody").querySelectorAll("tr[data-skill]").forEach(tr => {
+    tr.onclick = () => showEvidence(g.role, tr.dataset.skill, tr.dataset.q);
+  });
+}
+
+/* -------------------------------------------------------------- evidence */
+async function showEvidence(role, skill, quarter){
+  const ev = $("#evidence");
+  ev.classList.add("open");
+  $("#evtitle").textContent = `${skill} — ${role}, ${quarter}`;
+  $("#evsub").textContent = "loading…";
+  $("#evlist").innerHTML = "";
+
+  const res = await get(`/api/postings?role=${encodeURIComponent(role)}`
+    + `&skill=${encodeURIComponent(skill)}&quarter=${encodeURIComponent(quarter)}&limit=50`);
+  $("#evsub").innerHTML =
+    `These are the ${res.total_matching} postings counted in the numerator for this cell`
+    + `, showing ${res.returned}. <span class="tag t-syn">synthetic</span>`;
+
+  $("#evlist").innerHTML = res.postings.map(p => `
+    <div class="ev" data-id="${esc(p.id)}">
+      <div class="t">${esc(p.title)}</div>
+      <div class="sub">${esc(p.company)} · ${esc(p.location)} · ${esc(p.posted_date)}
+        · ${esc(p.id)} · source=${esc(p.source)} · ${p.n_skills} skills extracted</div>
+      <pre data-body>click to load full description…</pre>
+    </div>`).join("");
+
+  $("#evlist").querySelectorAll(".ev").forEach(card => {
+    card.onclick = async () => {
+      const pre = card.querySelector("[data-body]");
+      if(pre.dataset.loaded) return;
+      pre.dataset.loaded = "1";
+      const full = await get("/api/posting/" + encodeURIComponent(card.dataset.id));
+      pre.textContent = full.description_text || "(no text)";
+    };
+  });
+}
+
+boot().catch(e => {
+  document.querySelector(".wrap").innerHTML =
+    `<p class="err" style="margin-top:40px">Failed to load: ${esc(e.message)}<br>
+     <span class="sub">Try: python pipeline.py, then restart python run.py</span></p>`;
+});
+</script>
+</body>
+</html>

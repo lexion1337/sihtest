@@ -1,0 +1,187 @@
+{
+  "name": "B.Tech Computer Science and Engineering - representative Indian university curriculum",
+  "version": "2026-09",
+  "source": "synthetic-composite",
+  "source_note": "Hand-assembled composite modelled on the AICTE model curriculum and typical Indian university CSE course structures (4 years, 8 semesters). This is NOT a verbatim copy of any single university's syllabus and must not be presented as one. Before making any public or judged claim about a specific institution, replace this file with that institution's actual published scheme and cite it in source_url.",
+  "source_url": null,
+  "programme_duration_years": 4,
+  "revision_cycle_note": "Indian university curricula are typically revised on a 3-5 year cycle and board approval adds further lag. That lag is the thing this project measures against a quarterly job-market signal.",
+  "subjects": [
+    {
+      "code": "CS101",
+      "name": "Problem Solving and Programming in C",
+      "semester": 1,
+      "type": "core",
+      "topics": ["control flow", "arrays", "pointers", "file I/O", "recursion"],
+      "skills": []
+    },
+    {
+      "code": "CS102",
+      "name": "Object Oriented Programming with C++",
+      "semester": 2,
+      "type": "core",
+      "topics": ["classes and objects", "inheritance", "polymorphism", "templates", "STL"],
+      "skills": ["C++", "Object Oriented Programming"]
+    },
+    {
+      "code": "CS103L",
+      "name": "Python Programming Laboratory",
+      "semester": 2,
+      "type": "lab",
+      "topics": ["syntax and data types", "functions", "modules", "file handling", "basic scripting"],
+      "skills": ["Python"]
+    },
+    {
+      "code": "MA201",
+      "name": "Discrete Mathematics",
+      "semester": 3,
+      "type": "core",
+      "topics": ["set theory", "logic", "combinatorics", "graph theory", "recurrence relations"],
+      "skills": ["Discrete Mathematics"]
+    },
+    {
+      "code": "CS201",
+      "name": "Data Structures and Algorithms",
+      "semester": 3,
+      "type": "core",
+      "topics": ["linked lists", "stacks and queues", "trees", "graphs", "hashing", "sorting"],
+      "skills": ["Data Structures & Algorithms"]
+    },
+    {
+      "code": "CS202",
+      "name": "Digital Logic and Computer Organization",
+      "semester": 3,
+      "type": "core",
+      "topics": ["boolean algebra", "combinational circuits", "memory hierarchy", "pipelining"],
+      "skills": []
+    },
+    {
+      "code": "CS203",
+      "name": "Database Management Systems",
+      "semester": 4,
+      "type": "core",
+      "topics": ["ER modelling", "normalization", "SQL", "transactions", "indexing", "concurrency control"],
+      "skills": ["SQL", "MySQL", "Data Modeling"]
+    },
+    {
+      "code": "CS204",
+      "name": "Operating Systems",
+      "semester": 4,
+      "type": "core",
+      "topics": ["processes and threads", "scheduling", "deadlocks", "memory management", "file systems", "shell basics"],
+      "skills": ["Operating Systems", "Linux"]
+    },
+    {
+      "code": "CS205",
+      "name": "Design and Analysis of Algorithms",
+      "semester": 4,
+      "type": "core",
+      "topics": ["asymptotic analysis", "divide and conquer", "greedy", "dynamic programming", "NP-completeness"],
+      "skills": ["Data Structures & Algorithms"]
+    },
+    {
+      "code": "CS301",
+      "name": "Computer Networks",
+      "semester": 5,
+      "type": "core",
+      "topics": ["OSI and TCP/IP models", "routing", "transport protocols", "application layer protocols"],
+      "skills": ["Computer Networks"]
+    },
+    {
+      "code": "CS302",
+      "name": "Software Engineering",
+      "semester": 5,
+      "type": "core",
+      "topics": ["SDLC models", "requirement analysis", "UML diagrams", "agile basics", "software testing", "estimation"],
+      "skills": ["Software Engineering", "Agile", "UML", "Requirement Gathering", "Unit Testing"]
+    },
+    {
+      "code": "CS303",
+      "name": "Java Programming",
+      "semester": 5,
+      "type": "core",
+      "topics": ["JVM", "collections", "exception handling", "multithreading", "JDBC"],
+      "skills": ["Java", "Object Oriented Programming"]
+    },
+    {
+      "code": "MA301",
+      "name": "Probability and Statistics for Engineers",
+      "semester": 5,
+      "type": "core",
+      "topics": ["probability distributions", "sampling", "hypothesis testing", "regression basics"],
+      "skills": ["Statistics", "Hypothesis Testing"]
+    },
+    {
+      "code": "CS304",
+      "name": "Web Technologies",
+      "semester": 6,
+      "type": "core",
+      "topics": ["HTML and CSS", "JavaScript", "DOM", "HTTP", "basic REST services"],
+      "skills": ["HTML/CSS", "JavaScript", "REST API"]
+    },
+    {
+      "code": "CS305",
+      "name": "Machine Learning",
+      "semester": 6,
+      "type": "core",
+      "topics": ["supervised learning", "unsupervised learning", "model evaluation basics", "scikit-learn", "feature scaling"],
+      "skills": ["Machine Learning", "scikit-learn", "Python", "Feature Engineering"]
+    },
+    {
+      "code": "CS306",
+      "name": "Theory of Computation and Compiler Design",
+      "semester": 6,
+      "type": "core",
+      "topics": ["automata", "grammars", "lexical analysis", "parsing", "code generation"],
+      "skills": ["Compiler Design"]
+    },
+    {
+      "code": "CS307L",
+      "name": "Data Science Laboratory",
+      "semester": 6,
+      "type": "lab",
+      "topics": ["NumPy", "pandas", "matplotlib", "exploratory data analysis", "plotting"],
+      "skills": ["NumPy", "Pandas", "Matplotlib", "Data Visualization"]
+    },
+    {
+      "code": "CS401",
+      "name": "Artificial Intelligence",
+      "semester": 7,
+      "type": "core",
+      "topics": ["search", "knowledge representation", "intro to neural networks", "intro to NLP"],
+      "skills": ["Deep Learning", "NLP"]
+    },
+    {
+      "code": "CS411E",
+      "name": "Big Data Analytics (Elective)",
+      "semester": 7,
+      "type": "elective",
+      "topics": ["HDFS", "MapReduce", "Spark basics", "Hive"],
+      "skills": ["Hadoop", "Apache Spark"]
+    },
+    {
+      "code": "CS412E",
+      "name": "Cloud Computing (Elective)",
+      "semester": 7,
+      "type": "elective",
+      "topics": ["service models", "virtualization", "AWS core services", "cloud storage"],
+      "skills": ["Cloud Computing", "AWS"]
+    },
+    {
+      "code": "CS413E",
+      "name": "Cyber Security (Elective)",
+      "semester": 7,
+      "type": "elective",
+      "topics": ["cryptography basics", "network security", "web vulnerabilities", "access control"],
+      "skills": ["Cybersecurity"]
+    },
+    {
+      "code": "CS402",
+      "name": "Project Work and Internship",
+      "semester": 8,
+      "type": "core",
+      "topics": ["project planning", "version control", "documentation", "presentation"],
+      "skills": ["Git"]
+    }
+  ]
+}

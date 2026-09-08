@@ -1,0 +1,385 @@
+"""
+analysis.py -- quarterly skill drift + curriculum gap. Pure reads over SQLite.
+
+Every number this module emits is a count or a ratio of counts over rows in
+data/skills.db. Nothing is smoothed, imputed, extrapolated or hand-tuned. If a
+bucket is thin, we say so rather than hiding it (see LOW_CONFIDENCE_N).
+
+Definitions used throughout
+---------------------------
+share(skill, role, quarter)
+    postings in that (role, quarter) bucket whose description mentioned the
+    skill, divided by ALL postings in that same bucket. Expressed in percent.
+    The denominator is always postings, never skill mentions.
+
+latest_share
+    share in the most recent quarter that has any postings for the role. This
+    is the number quoted in the gap table, so it is reported raw.
+
+baseline_share
+    POOLED share over the first two quarters that have postings: postings
+    mentioning the skill across both quarters, divided by all postings across
+    both quarters. Pooling cuts sampling noise on the baseline, which matters
+    because buckets here are n=12-25. The latest quarter is deliberately NOT
+    pooled -- we quote it, so we show it as measured.
+
+change_pp
+    latest_share - baseline_share, in percentage points.
+
+trend
+    rising    if change_pp >= +TREND_DELTA_PP
+    declining if change_pp <= -TREND_DELTA_PP
+    stable    otherwise
+
+significant
+    Two-proportion z-test, baseline window vs latest quarter, p < ALPHA.
+    This matters more than it looks. At n=25 a skill can move 12 percentage
+    points on sampling noise alone, so an unqualified "rising" label is not a
+    finding. trend gives the DIRECTION; significant says whether the sample
+    can actually support the claim. The UI must not present a non-significant
+    trend as established -- see the honesty rules in CLAUDE.md.
+
+Confidence interval
+    95% Wilson score interval on the latest quarter's share. Wilson rather
+    than the normal approximation because it stays sane at p near 0 or 1,
+    which is exactly where the interesting emerging skills sit.
+
+Run:  python analysis.py
+"""
+
+import json
+import math
+import os
+
+import pipeline
+import skills as skills_mod
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+CURRICULUM_PATH = os.path.join(HERE, "data", "curriculum.json")
+
+# A quarter with fewer than this many postings cannot support a percentage
+# claim. Computed anyway, but flagged, and the UI must render the flag.
+LOW_CONFIDENCE_N = 20
+
+# Minimum movement in percentage points before we call a skill rising/declining.
+TREND_DELTA_PP = 5.0
+
+# A skill must be asked for in at least this share of the latest quarter's
+# postings before its absence from the curriculum is worth reporting.
+GAP_MIN_SHARE_PCT = 15.0
+
+Z95 = 1.959963984540054
+
+
+def wilson95(count, n):
+    """95% Wilson score interval for a proportion, returned in percent."""
+    if n <= 0:
+        return (0.0, 0.0)
+    p = count / n
+    z2 = Z95 * Z95
+    denom = 1.0 + z2 / n
+    centre = (p + z2 / (2 * n)) / denom
+    half = Z95 * math.sqrt(p * (1 - p) / n + z2 / (4 * n * n)) / denom
+    return (round(max(0.0, centre - half) * 100, 1),
+            round(min(1.0, centre + half) * 100, 1))
+
+
+def two_proportion_p(c1, n1, c2, n2):
+    """Two-sided two-proportion z-test. Returns (z, p_value).
+
+    Null hypothesis: the baseline window and the latest quarter were drawn
+    from the same underlying rate. A small p means the movement is unlikely
+    to be sampling noise at this sample size.
+    """
+    if n1 <= 0 or n2 <= 0:
+        return (0.0, 1.0)
+    p1, p2 = c1 / n1, c2 / n2
+    pool = (c1 + c2) / (n1 + n2)
+    se = math.sqrt(pool * (1 - pool) * (1.0 / n1 + 1.0 / n2))
+    if se == 0:
+        return (0.0, 1.0)
+    z = (p2 - p1) / se
+    p = 2.0 * (1.0 - 0.5 * (1.0 + math.erf(abs(z) / math.sqrt(2.0))))
+    return (round(z, 3), round(p, 4))
+
+
+# Significance threshold for calling a trend a finding rather than a wiggle.
+ALPHA = 0.05
+
+
+# ------------------------------------------------------------- curriculum
+
+def load_curriculum(path=CURRICULUM_PATH):
+    with open(path, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    known = set(skills_mod.all_skills())
+    taught, unknown = set(), []
+    for sub in doc["subjects"]:
+        for s in sub.get("skills", []):
+            if s not in known:
+                unknown.append((sub["code"], s))
+            taught.add(s)
+    if unknown:
+        raise ValueError(
+            "curriculum.json references skills absent from skills.py: %s" % unknown)
+    doc["taught_skills"] = sorted(taught)
+    doc["n_subjects"] = len(doc["subjects"])
+    return doc
+
+
+# ------------------------------------------------------------------ drift
+
+def roles(con):
+    return [r["role"] for r in con.execute(
+        "SELECT role, COUNT(*) c FROM postings GROUP BY role ORDER BY role")]
+
+
+def _quarter_totals(con, role):
+    rows = con.execute(
+        "SELECT quarter, COUNT(*) AS n FROM postings WHERE role = ? "
+        "GROUP BY quarter ORDER BY quarter", (role,)).fetchall()
+    return [(r["quarter"], r["n"]) for r in rows]
+
+
+def drift(con, role):
+    """Full per-skill quarterly series and summary for one role."""
+    totals = _quarter_totals(con, role)
+    if not totals:
+        return {"role": role, "quarters": [], "skills": []}
+    qs = [q for q, _n in totals]
+    n_by_q = dict(totals)
+
+    counts = {}
+    for r in con.execute(
+            "SELECT skill, quarter, COUNT(DISTINCT posting_id) AS c "
+            "FROM posting_skills WHERE role = ? GROUP BY skill, quarter", (role,)):
+        counts.setdefault(r["skill"], {})[r["quarter"]] = r["c"]
+
+    latest_q = qs[-1]
+    latest_n = n_by_q[latest_q]
+    baseline_qs = qs[:2]
+
+    out = []
+    for skill, by_q in counts.items():
+        series = []
+        for q in qs:
+            n = n_by_q[q]
+            c = by_q.get(q, 0)
+            series.append({
+                "quarter": q,
+                "n": n,
+                "count": c,
+                "share": round(100.0 * c / n, 1) if n else 0.0,
+                "low_confidence": n < LOW_CONFIDENCE_N,
+            })
+
+        first_seen = next((p["quarter"] for p in series if p["count"] > 0), None)
+        latest_count = by_q.get(latest_q, 0)
+        latest_share = round(100.0 * latest_count / latest_n, 1) if latest_n else 0.0
+        base_pts = [p for p in series if p["quarter"] in baseline_qs]
+        baseline_count = sum(p["count"] for p in base_pts)
+        baseline_n = sum(p["n"] for p in base_pts)
+        baseline_share = round(100.0 * baseline_count / baseline_n, 1) if baseline_n else 0.0
+        change = round(latest_share - baseline_share, 1)
+        if change >= TREND_DELTA_PP:
+            trend = "rising"
+        elif change <= -TREND_DELTA_PP:
+            trend = "declining"
+        else:
+            trend = "stable"
+        lo, hi = wilson95(latest_count, latest_n)
+        z, pval = two_proportion_p(baseline_count, baseline_n, latest_count, latest_n)
+
+        out.append({
+            "skill": skill,
+            "category": skills_mod.skill_category(skill),
+            "series": series,
+            "first_seen": first_seen,
+            "latest_quarter": latest_q,
+            "latest_n": latest_n,
+            "latest_count": latest_count,
+            "latest_share": latest_share,
+            "latest_ci95": [lo, hi],
+            "baseline_quarters": baseline_qs,
+            "baseline_count": baseline_count,
+            "baseline_n": baseline_n,
+            "baseline_share": baseline_share,
+            "change_pp": change,
+            "trend": trend,
+            "z": z,
+            "p_value": pval,
+            "significant": pval < ALPHA,
+            "total_postings_with_skill": sum(by_q.values()),
+            "low_confidence_latest": latest_n < LOW_CONFIDENCE_N,
+        })
+
+    out.sort(key=lambda s: -s["latest_share"])
+    return {
+        "role": role,
+        "quarters": [{"quarter": q, "n": n, "low_confidence": n < LOW_CONFIDENCE_N}
+                     for q, n in totals],
+        "n_postings": sum(n for _q, n in totals),
+        "latest_quarter": latest_q,
+        "latest_n": latest_n,
+        "baseline_quarters": baseline_qs,
+        "skills": out,
+        "thresholds": {
+            "low_confidence_n": LOW_CONFIDENCE_N,
+            "trend_delta_pp": TREND_DELTA_PP,
+            "gap_min_share_pct": GAP_MIN_SHARE_PCT,
+            "alpha": ALPHA,
+        },
+    }
+
+
+def top_skills(drift_result, k=8, rank_by="latest"):
+    """Skills for the chart. rank_by: 'latest' share, or 'change' (movers)."""
+    rows = list(drift_result["skills"])
+    if rank_by == "change":
+        rows.sort(key=lambda s: -abs(s["change_pp"]))
+    else:
+        rows.sort(key=lambda s: -s["latest_share"])
+    return rows[:k]
+
+
+# --------------------------------------------------------- curriculum gap
+
+def curriculum_gap(con, role, curriculum=None, drift_result=None):
+    """Rising + materially demanded + not in the curriculum. The centrepiece."""
+    cur = curriculum or load_curriculum()
+    d = drift_result or drift(con, role)
+    taught = set(cur["taught_skills"])
+
+    gaps, covered = [], []
+    for s in d["skills"]:
+        row = {
+            "skill": s["skill"],
+            "category": s["category"],
+            "latest_quarter": s["latest_quarter"],
+            "latest_share": s["latest_share"],
+            "latest_count": s["latest_count"],
+            "latest_n": s["latest_n"],
+            "latest_ci95": s["latest_ci95"],
+            "baseline_share": s["baseline_share"],
+            "baseline_count": s["baseline_count"],
+            "baseline_n": s["baseline_n"],
+            "change_pp": s["change_pp"],
+            "trend": s["trend"],
+            "p_value": s["p_value"],
+            "significant": s["significant"],
+            "first_seen": s["first_seen"],
+            "taught": s["skill"] in taught,
+            "low_confidence": s["low_confidence_latest"],
+        }
+        qualifies = (s["trend"] == "rising"
+                     and s["latest_share"] >= GAP_MIN_SHARE_PCT
+                     and s["skill"] not in taught)
+        if qualifies:
+            gaps.append(row)
+        elif s["skill"] in taught and s["latest_share"] >= GAP_MIN_SHARE_PCT:
+            covered.append(row)
+
+    gaps.sort(key=lambda r: -r["latest_share"])
+    covered.sort(key=lambda r: -r["latest_share"])
+
+    demanded = {s["skill"] for s in d["skills"] if s["latest_share"] >= GAP_MIN_SHARE_PCT}
+    return {
+        "role": role,
+        "latest_quarter": d["latest_quarter"],
+        "latest_n": d["latest_n"],
+        "low_confidence": d["latest_n"] < LOW_CONFIDENCE_N,
+        "criteria": {
+            "trend": "rising",
+            "min_latest_share_pct": GAP_MIN_SHARE_PCT,
+            "trend_delta_pp": TREND_DELTA_PP,
+            "alpha": ALPHA,
+            "not_in": cur["name"],
+        },
+        "gaps": gaps,
+        "n_gaps": len(gaps),
+        "n_gaps_significant": sum(1 for r in gaps if r["significant"]),
+        "covered": covered,
+        "curriculum": {
+            "name": cur["name"],
+            "version": cur.get("version"),
+            "source": cur.get("source"),
+            "source_note": cur.get("source_note"),
+            "n_subjects": cur["n_subjects"],
+            "n_skills_taught": len(taught),
+            "n_taught_and_demanded": len(taught & demanded),
+            "taught_skills": cur["taught_skills"],
+        },
+    }
+
+
+# --------------------------------------------------------------- overview
+
+def overview(con):
+    meta = {r["key"]: r["value"] for r in con.execute("SELECT key, value FROM meta")}
+    src = json.loads(meta.get("sources", "{}"))
+    by_role = [{"role": r["role"], "n": r["n"]} for r in con.execute(
+        "SELECT role, COUNT(*) AS n FROM postings GROUP BY role ORDER BY role")]
+    return {
+        "n_postings": int(meta.get("n_postings", 0)),
+        "n_skill_mentions": int(meta.get("n_skill_mentions", 0)),
+        "skill_dict_size": int(meta.get("skill_dict_size", 0)),
+        "date_min": meta.get("date_min"),
+        "date_max": meta.get("date_max"),
+        "built_at": meta.get("built_at"),
+        "sources": src,
+        "all_synthetic": set(src) == {"synthetic"},
+        "by_role": by_role,
+        "thresholds": {
+            "low_confidence_n": LOW_CONFIDENCE_N,
+            "trend_delta_pp": TREND_DELTA_PP,
+            "gap_min_share_pct": GAP_MIN_SHARE_PCT,
+            "alpha": ALPHA,
+        },
+    }
+
+
+if __name__ == "__main__":
+    con = pipeline.connect()
+    ov = overview(con)
+    print("=" * 78)
+    print("CORPUS: %d postings | %s .. %s | sources=%s"
+          % (ov["n_postings"], ov["date_min"], ov["date_max"], ov["sources"]))
+    if ov["all_synthetic"]:
+        print("*** ALL RECORDS ARE SYNTHETIC SEED DATA -- NOT A REAL MARKET MEASUREMENT ***")
+    cur = load_curriculum()
+    print("CURRICULUM: %s (%d subjects, %d distinct skills, source=%s)"
+          % (cur["name"], cur["n_subjects"], len(cur["taught_skills"]), cur["source"]))
+
+    for role in roles(con):
+        d = drift(con, role)
+        print("=" * 78)
+        print("ROLE: %s  (%d postings, latest quarter %s, n=%d)"
+              % (role, d["n_postings"], d["latest_quarter"], d["latest_n"]))
+        thin = [q["quarter"] for q in d["quarters"] if q["low_confidence"]]
+        print("  quarters: %s" % ", ".join(
+            "%s(n=%d)%s" % (q["quarter"], q["n"], "*" if q["low_confidence"] else "")
+            for q in d["quarters"]))
+        if thin:
+            print("  * = n < %d, low confidence: %s" % (LOW_CONFIDENCE_N, ", ".join(thin)))
+
+        print("  -- top 8 by latest share --")
+        for s in top_skills(d, 8):
+            print("     %-26s %5.1f%% (%d/%d)  base %5.1f%%  chg %+5.1fpp  %-9s p=%.3f%s"
+                  % (s["skill"], s["latest_share"], s["latest_count"], s["latest_n"],
+                     s["baseline_share"], s["change_pp"], s["trend"], s["p_value"],
+                     "" if s["significant"] else "  (not significant)"))
+
+        g = curriculum_gap(con, role, cur, d)
+        print("  -- CURRICULUM GAP: rising, >=%.0f%% of %s postings, absent from syllabus --"
+              % (GAP_MIN_SHARE_PCT, g["latest_quarter"]))
+        print("     %d candidate gaps, of which %d survive a p<%.2f significance test"
+              % (g["n_gaps"], g["n_gaps_significant"], ALPHA))
+        if not g["gaps"]:
+            print("     (none)")
+        for r in g["gaps"]:
+            print("     %-26s %5.1f%% (%d/%d)  95%% CI [%.1f, %.1f]  chg %+5.1fpp  p=%.3f  %s"
+                  % (r["skill"], r["latest_share"], r["latest_count"], r["latest_n"],
+                     r["latest_ci95"][0], r["latest_ci95"][1], r["change_pp"], r["p_value"],
+                     "SIGNIFICANT" if r["significant"]
+                     else "not significant - needs more data"))
+    con.close()
