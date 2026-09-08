@@ -95,8 +95,12 @@
 </head>
 <body>
 
+<!-- Provenance banner. Text, colour and counts are all set by JS from
+     /api/overview -> provenance, which the pipeline derives from the source
+     field of the records it actually loaded. Nothing here is hardcoded: a
+     corpus that gains real postings relabels itself on the next rebuild. -->
 <div id="banner">
-  DEMO DATA — synthetic, pending live scrape.
+  <span id="bannerHead">LOADING…</span>
   <span class="sub" id="bannerSub"></span>
 </div>
 
@@ -199,20 +203,56 @@ function sigTag(sig, p){
     : `<span class="tag t-nosig">not significant</span> <span class="sub">p=${p.toFixed(3)}</span>`;
 }
 
+/* --------------------------------------------------------------- banner */
+/* Three provenance states, all driven by what the pipeline actually loaded.
+   Every state carries its counts, because a claim about the corpus is still
+   a claim and needs its sample size (honesty rules 3 and 4). */
+const BANNER_STATES = {
+  synthetic: { bg:"var(--warn)", fg:"#1a1205", sub:"#5c4206",
+               head:"DEMO DATA — synthetic, pending live ingest." },
+  mixed:     { bg:"var(--warn)", fg:"#1a1205", sub:"#5c4206",
+               head:"MIXED DATA — part real, part synthetic." },
+  real:      { bg:"var(--good)", fg:"#06210f", sub:"#0b3d1e",
+               head:"LIVE DATA — real job postings." },
+  empty:     { bg:"var(--bad)",  fg:"#2a0d0a", sub:"#4a1410",
+               head:"NO DATA — the corpus is empty." },
+};
+
+function renderBanner(ov){
+  const st = BANNER_STATES[ov.provenance] || BANNER_STATES.empty;
+  const tot = ov.n_postings, real = ov.n_real, synth = ov.n_synthetic;
+  const bySource = Object.entries(ov.sources || {})
+    .sort((a,b) => b[1]-a[1])
+    .map(([k,v]) => `${k}: ${v}`).join(" · ");
+  const files = (ov.source_files || []).join(", ");
+
+  let detail;
+  if(ov.provenance === "synthetic"){
+    detail = `all ${tot} postings are generated seed records · 0 real`;
+  } else if(ov.provenance === "mixed"){
+    detail = `${real} real + ${synth} synthetic = ${tot} postings`;
+  } else if(ov.provenance === "real"){
+    detail = `${real} real postings · 0 synthetic`;
+  } else {
+    detail = "run: python pipeline.py";
+  }
+  if(bySource) detail += ` · ${bySource}`;
+  if(files)    detail += ` · from ${files}`;
+
+  const b = $("#banner");
+  b.style.background = st.bg;
+  b.style.color = st.fg;
+  $("#bannerHead").textContent = st.head;
+  const sub = $("#bannerSub");
+  sub.style.color = st.sub;
+  sub.textContent = " " + detail;
+}
+
 /* ------------------------------------------------------------------ boot */
 async function boot(){
   OV = await get("/api/overview");
 
-  const synth = OV.sources.synthetic || 0;
-  const real = OV.n_postings - synth;
-  $("#bannerSub").textContent =
-    ` ${synth} of ${OV.n_postings} postings are generated seed records`
-    + (real ? ` · ${real} from live sources` : " · no live records yet")
-    + ` · scraper not implemented`;
-  if(!OV.all_synthetic && synth === 0){
-    $("#banner").style.background = "var(--good)";
-    $("#banner").firstChild.textContent = "LIVE DATA — ";
-  }
+  renderBanner(OV);
 
   $("#strip").innerHTML = [
     ["Postings measured", OV.n_postings, `${OV.date_min} → ${OV.date_max}`],

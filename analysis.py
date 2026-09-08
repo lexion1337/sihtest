@@ -106,6 +106,38 @@ def two_proportion_p(c1, n1, c2, n2):
 # Significance threshold for calling a trend a finding rather than a wiggle.
 ALPHA = 0.05
 
+# ------------------------------------------------------------- provenance
+
+# Sources that are generated rather than observed. Anything not listed here is
+# treated as real data from a named origin (greenhouse, lever, ashby, ...).
+SYNTHETIC_SOURCES = {"synthetic"}
+
+
+def provenance(sources):
+    """Classify a corpus from its {source: count} map.
+
+    Returns one of "empty", "synthetic", "mixed", "real". The UI banner keys
+    off this rather than any hardcoded flag, so a corpus that gains real
+    records starts describing itself accurately the moment it is rebuilt --
+    nobody has to remember to flip a switch. That is honesty rule 3 enforced
+    in code rather than in intent.
+    """
+    total = sum(sources.values())
+    if not total:
+        return "empty"
+    synth = sum(n for s, n in sources.items() if s in SYNTHETIC_SOURCES)
+    if synth == total:
+        return "synthetic"
+    if synth == 0:
+        return "real"
+    return "mixed"
+
+
+def split_counts(sources):
+    """(synthetic_count, real_count) for a {source: count} map."""
+    synth = sum(n for s, n in sources.items() if s in SYNTHETIC_SOURCES)
+    return synth, sum(sources.values()) - synth
+
 
 # ------------------------------------------------------------- curriculum
 
@@ -327,7 +359,12 @@ def overview(con):
         "date_max": meta.get("date_max"),
         "built_at": meta.get("built_at"),
         "sources": src,
-        "all_synthetic": set(src) == {"synthetic"},
+        "source_files": json.loads(meta.get("source_files", "[]")),
+        "provenance": provenance(src),
+        "n_synthetic": split_counts(src)[0],
+        "n_real": split_counts(src)[1],
+        # Kept for backward compatibility with anything reading the old field.
+        "all_synthetic": provenance(src) == "synthetic",
         "by_role": by_role,
         "thresholds": {
             "low_confidence_n": LOW_CONFIDENCE_N,
