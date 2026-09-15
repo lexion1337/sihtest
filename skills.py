@@ -285,6 +285,37 @@ def aliases_for(name):
     return _ALIASES[name]
 
 
+def match_sentences(text, canonical, max_hits=6):
+    """Sentences in `text` that caused `canonical` to be extracted.
+
+    The drawer must show WHY a posting was counted, not just that it was.
+    Showing the sentence lets a reader judge whether the mention is a real
+    requirement or incidental company description -- a distinction the count
+    itself cannot make.
+    """
+    if not text or canonical not in _CATEGORY:
+        return []
+    pats = dict((c, p) for c, _cat, p in
+                ((x[0], x[1], x[2]) for x in _COMPILED)).get(canonical)
+    if not pats:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+|\n+", text)
+    hits = []
+    for part in parts:
+        chunk = part.strip()
+        if not chunk:
+            continue
+        for pat in pats:
+            m = pat.search(chunk)
+            if m:
+                hits.append({"sentence": chunk[:400],
+                             "matched": m.group(0)})
+                break
+        if len(hits) >= max_hits:
+            break
+    return hits
+
+
 def skill_count():
     return len(SKILL_DEFS)
 

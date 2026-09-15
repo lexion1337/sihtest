@@ -348,6 +348,170 @@ def top_skills(drift_result, k=8, rank_by="latest"):
     return rows[:k]
 
 
+# ---------------------------------------------------------- finding detail
+
+def observation_cutoff(con):
+    """The latest posted_date actually in the corpus.
+
+    A quarter LABEL does not mean the quarter was observed to its end. Saying
+    "2026-Q3" when collection stopped on 8 September implies six weeks of data
+    that do not exist, so every analysis surfaces this date.
+    """
+    r = con.execute("SELECT MAX(posted_date) AS d FROM postings").fetchone()
+    return r["d"] if r else None
+
+
+def cohort_composition(con, role, skill=None, quarter=None, eligible_only=True):
+    """Who actually produced a number: real vs synthetic, by source.
+
+    The corpus-wide banner says the CORPUS is mixed. It does not say whether
+    THIS 48% came from real postings or generated ones. A judge is entitled to
+    ask, so every headline figure carries its own composition.
+    """
+    where = ["p.role = ?"]
+    args = [role]
+    if eligible_only:
+        where.append("p.ts_eligible = 1")
+    if quarter:
+        where.append("p.quarter = ?")
+        args.append(quarter)
+    if skill:
+        sql = ("SELECT p.source, COUNT(DISTINCT p.id) AS c FROM postings p "
+               "JOIN posting_skills s ON s.posting_id = p.id "
+               "WHERE " + " AND ".join(where) + " AND s.skill = ? GROUP BY p.source")
+        args = args + [skill]
+    else:
+        sql = ("SELECT p.source, COUNT(*) AS c FROM postings p WHERE "
+               + " AND ".join(where) + " GROUP BY p.source")
+    by_source = {r["source"]: r["c"] for r in con.execute(sql, args)}
+    synth, real = split_counts(by_source)
+    return {"by_source": by_source, "n_synthetic": synth, "n_real": real,
+            "total": synth + real, "provenance": provenance(by_source)}
+
+
+def _syllabus_mapping(cur, skill):
+    """Subject-level evidence, not an inference from absence in an array."""
+    subs = _subjects_teaching(cur, skill)
+    return {
+        "taught": bool(subs),
+        "n_subjects_teaching": len(subs),
+        "n_subjects_total": cur["n_subjects"],
+        "subjects": subs,
+        "syllabus_name": cur["name"],
+        "syllabus_version": cur.get("version"),
+        "syllabus_source": cur.get("source"),
+    }
+
+
+def finding(con, role, skill, curriculum=None, drift_result=None):
+    """Everything needed to state one finding honestly, in one payload."""
+    cur = curriculum or load_curriculum()
+    d = drift_result or drift(con, role)
+    m = next((x for x in d["skills"] if x["skill"] == skill), None)
+    if m is None:
+        return None
+    lq = d["latest_quarter"]
+    return {
+        "role": role,
+        "skill": skill,
+        "category": m["category"],
+        "latest_quarter": lq,
+        "observed_through": observation_cutoff(con),
+        "prevalence": {
+            "share": m["latest_share"], "count": m["latest_count"],
+            "n": m["latest_n"], "ci95": m["latest_ci95"],
+            "ci_is_for": "prevalence in the latest quarter, not for the change",
+            "low_confidence": m["low_confidence_latest"],
+        },
+        "baseline": {
+            "quarters": m["baseline_quarters"], "count": m["baseline_count"],
+            "n": m["baseline_n"], "share": m["baseline_share"],
+            "definition": "pooled across the first two observed quarters",
+        },
+        "change": {"change_pp": m["change_pp"], "trend": m["trend"]},
+        "statistics": {
+            "test": "two-proportion z-test (pooled), two-sided",
+            "p_raw": m["p_value"],
+            "p_adjusted": m["p_adjusted"],
+            "correction": m["correction_method"],
+            "family_size": m["correction_family_size"],
+            "alpha": ALPHA,
+            "decision": ("supported" if m["significant_adjusted"]
+                         else "not supported at this precision"),
+        },
+        "composition": cohort_composition(con, role, skill, lq),
+        "syllabus": _syllabus_mapping(cur, skill),
+        "cohort_definition": (
+            "postings with role=%s, quarter=%s, excluding records whose only "
+            "date is a last-modified timestamp" % (role, lq)),
+    }
+
+
+def findings(con, role, curriculum=None, drift_result=None):
+    """Supported and discarded drift alerts, both returned in full.
+
+    Discarded findings are returned as first-class data, not omitted. Showing
+    what failed the decision rule is the point.
+    """
+    cur = curriculum or load_curriculum()
+    d = drift_result or drift(con, role)
+    taught = set(cur["taught_skills"])
+
+    supported, discarded = [], []
+    for m in d["skills"]:
+        row = {
+            "skill": m["skill"], "category": m["category"],
+            "latest_share": m["latest_share"], "latest_count": m["latest_count"],
+            "latest_n": m["latest_n"], "latest_ci95": m["latest_ci95"],
+            "baseline_share": m["baseline_share"], "baseline_count": m["baseline_count"],
+            "baseline_n": m["baseline_n"], "change_pp": m["change_pp"],
+            "trend": m["trend"], "p_raw": m["p_value"], "p_adjusted": m["p_adjusted"],
+            "taught": m["skill"] in taught,
+            "n_subjects_teaching": len(_subjects_teaching(cur, m["skill"])),
+            "low_confidence": m["low_confidence_latest"],
+        }
+        material = m["latest_share"] >= GAP_MIN_SHARE_PCT
+        if m["significant_adjusted"] and m["trend"] != "stable" and material:
+            row["decision"] = "supported"
+            row["reason"] = "change supported after %s correction" % CORRECTION_METHOD
+            supported.append(row)
+        elif material and m["trend"] != "stable":
+            row["decision"] = "not supported at this precision"
+            row["reason"] = ("observed prevalence %.0f%%; insufficient evidence of change "
+                             "(adjusted p=%.3f)" % (m["latest_share"], m["p_adjusted"]))
+            discarded.append(row)
+
+    supported.sort(key=lambda r: -r["latest_share"])
+    discarded.sort(key=lambda r: -r["latest_share"])
+
+    featured = None
+    unmapped = [r for r in supported if not r["taught"]]
+    if unmapped:
+        featured = unmapped[0]["skill"]
+    elif supported:
+        featured = supported[0]["skill"]
+
+    return {
+        "role": role,
+        "latest_quarter": d["latest_quarter"],
+        "latest_n": d["latest_n"],
+        "observed_through": observation_cutoff(con),
+        "correction": d.get("correction"),
+        "criteria": {
+            "min_latest_share_pct": GAP_MIN_SHARE_PCT,
+            "trend_delta_pp": TREND_DELTA_PP,
+            "alpha": ALPHA,
+            "correction": CORRECTION_METHOD,
+        },
+        "featured_skill": featured,
+        "n_supported": len(supported),
+        "n_discarded": len(discarded),
+        "supported": supported,
+        "discarded": discarded,
+        "excluded_from_time_series": d["excluded_from_time_series"],
+    }
+
+
 # ------------------------------------------------------ demand by location
 
 # A city with fewer postings than this cannot support a per-city percentage.
@@ -589,6 +753,7 @@ def overview(con):
         "sources": src,
         "source_files": json.loads(meta.get("source_files", "[]")),
         "provenance": provenance(src),
+        "observed_through": observation_cutoff(con),
         "n_ts_excluded": int(meta.get("n_ts_excluded", 0)),
         "ts_excluded_by_source": json.loads(meta.get("ts_excluded_by_source", "{}")),
         "n_synthetic": split_counts(src)[0],

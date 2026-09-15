@@ -85,6 +85,23 @@ def api_gap(role: str = Query(...)):
     return analysis.curriculum_gap(CON, role, CURRICULUM)
 
 
+@app.get("/api/findings")
+def api_findings(role: str = Query(...)):
+    """Supported AND discarded drift alerts. Discarded ones are first-class."""
+    _check_role(role)
+    return analysis.findings(CON, role, CURRICULUM)
+
+
+@app.get("/api/finding")
+def api_finding(role: str = Query(...), skill: str = Query(...)):
+    """Everything needed to state one finding honestly, in one payload."""
+    _check_role(role)
+    f = analysis.finding(CON, role, skill, CURRICULUM)
+    if f is None:
+        raise HTTPException(404, "skill %r not measured for role %r" % (skill, role))
+    return f
+
+
 @app.get("/api/locations")
 def api_locations(role: str = Query(None),
                   country: str = Query("India"),
@@ -153,8 +170,12 @@ def api_postings(role: str = Query(...),
 
 
 @app.get("/api/posting/{posting_id}")
-def api_posting(posting_id: str):
-    """Full text of one posting, plus the skills extracted from it."""
+def api_posting(posting_id: str, skill: str = Query(None)):
+    """Full text of one posting, plus the skills extracted from it.
+
+    With ?skill=, also returns the sentences that caused that skill to be
+    counted, so the drawer can show WHY the posting entered the numerator.
+    """
     row = CON.execute("SELECT * FROM postings WHERE id = ?", (posting_id,)).fetchone()
     if row is None:
         raise HTTPException(404, "no posting %r" % posting_id)
@@ -168,7 +189,12 @@ def api_posting(posting_id: str):
         if rec["id"] == posting_id:
             text = rec["description_text"]
             break
-    return {"posting": dict(row), "skills": found, "description_text": text}
+    out = {"posting": dict(row), "skills": found, "description_text": text}
+    if skill:
+        import skills as skills_mod
+        out["match_sentences"] = skills_mod.match_sentences(text or "", skill)
+        out["matched_skill"] = skill
+    return out
 
 
 @app.get("/api/health")
