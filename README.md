@@ -107,8 +107,16 @@ companies publish so their careers pages can be embedded on other sites:
 | Meesho | Lever | 50 |
 | CRED | Lever | 11 |
 
-**This is not scraping.** These endpoints exist to be read. We did not bypass
-a login, ignore a `robots.txt`, or hammer anyone's server.
+**We did not scrape.** These endpoints are documented and unauthenticated, and
+we did not bypass a login, ignore a `robots.txt`, or hammer anyone's server.
+
+**But reading is not the same as republishing.** A public endpoint does not by
+itself grant permission to redistribute the full descriptions it returns. We
+keep the job text in the **private** repo and the local demo environment with
+its source and fetch date recorded; check each provider's terms before putting
+any of it in a public repository or dataset. If you ever make this repo public,
+`git rm --cached` is not enough — the text is in git history from commit
+`41e3c29` and would need a history rewrite.
 
 ### The rule you must follow
 

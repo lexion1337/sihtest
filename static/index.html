@@ -669,15 +669,27 @@ function drawMethods(){
   const c = F.correction || {};
   const Y = YIELD;
   const yieldRow = Y ? [
-    ["Collection yield", `${Y.real_total.collected} real postings collected, ${Y.real_total.usable} usable (${Y.real_total.yield_pct}%).`,
-     `More boards raises "collected". Only boards whose postings are target-relevant AND
-      carry a true creation date raise "usable", which is the number worth optimising.
+    ["Current historical-analysis eligibility", `${Y.real_total.collected} real postings collected, ${Y.real_total.historically_eligible} eligible for the quarterly analysis today (${Y.real_total.yield_pct}%). Accessibility to trainees: NOT ASSESSED.`,
+     `Read the name precisely. This is what can enter the QUARTERLY analysis today, not a
+      verdict on a source. Greenhouse's zero is zero for the HISTORICAL series only: those
+      records already feed the cross-sectional views, and can join a prospective series once
+      a starting inventory is frozen, because successive snapshots establish when a
+      requisition was first OBSERVED even though the source publishes no creation date.
+      Source publication dates and first-observed dates are different quantities and must not
+      be pooled.
+      The final column is the one that matters to an administrator and it is empty: passing our
+      role and date filters says a record can enter OUR pipeline, not that the job is one the
+      intended trainees could be hired into. Until that review is done, this funnel's endpoint
+      overstates usefulness.
       <table style="margin-top:10px"><thead><tr><th>Source</th><th class="num">Collected</th>
       <th class="num">In a measured role</th><th class="num">Date-eligible</th>
-      <th class="num">Usable</th><th class="num">Yield</th></tr></thead><tbody>`
+      <th class="num">Historically eligible</th><th>Accessible to trainees</th>
+      <th class="num">Yield</th></tr></thead><tbody>`
       + Y.by_source.map(r => `<tr><td>${esc(r.source)}</td><td class="num">${r.collected}</td>
           <td class="num">${r.in_measured_role}</td><td class="num">${r.date_eligible}</td>
-          <td class="num"><b>${r.usable}</b></td><td class="num">${r.yield_pct}%</td></tr>`).join("")
+          <td class="num"><b>${r.historically_eligible}</b></td>
+          <td><span class="dec">${esc(r.accessibility_status)}</span></td>
+          <td class="num">${r.yield_pct}%</td></tr>`).join("")
       + `</tbody></table>`]
   ] : [];
   const rows = [
@@ -701,7 +713,7 @@ function drawMethods(){
       title rules; anything uncertain becomes "Other (unclassified)" rather than being forced into a
       bucket. Syllabus is ${esc(OV.curriculum.name)} (${esc(OV.curriculum.source)}) — a demonstration
       syllabus, not an ITI or NSQF qualification pack.`],
-    ["Decision rule", `ONE procedure decides "supported": pooled two-proportion z-test, ${esc(c.method||"—")}-adjusted across all ${c.family_size||"—"} competencies measured for the role, p < ${F.criteria.alpha}.`,
+    ["Decision rule", `ONE procedure decides "supported": pooled two-proportion z-test, ${esc(c.method||"—")}-adjusted across all ${c.family_size||"—"} competencies measured for the role, p < ${F.criteria.alpha}. Reproducible; NOT yet demonstrated to be well calibrated.`,
      `Fisher's exact test is computed and displayed as a SENSITIVITY CHECK and gates
       nothing. Reporting two tests without saying which one decides invites picking
       whichever supports each finding, so the rule is declared in one place in the code
@@ -712,7 +724,15 @@ function drawMethods(){
       releases -- if those are ever combined, the family must be redeclared.
       Note on motivation: "about two false alerts across forty tests at p<0.05" describes
       what would happen if all forty nulls were true and each test were properly
-      calibrated. It is NOT an estimate of how many previous findings were false.`],
+      calibrated. It is NOT an estimate of how many previous findings were false.
+      <b>Frozen is not the same as calibrated.</b> Declaring one procedure stops us picking
+      whichever test flatters a finding. It does not show the p-values behave well: BH cannot
+      repair poorly calibrated inputs, and at n=25 with counts of one to three the normal
+      approximation is exactly where calibration is doubtful. Showing Fisher alongside does not
+      fix it either, because Fisher gates nothing. What would: measuring this procedure's
+      empirical false-discovery rate and power across repeated simulations with known ground
+      truth, or adopting a prespecified exact procedure and recomputing the whole family.
+      Neither is done. Treat these p-values as reproducible, not as validated.`],
     ["Statistics", `Primary test is a normal approximation, weakly calibrated at these sample sizes. Fisher exact reported alongside.`,
      `Baseline is POOLED across the first two observed quarters and compared with the latest quarter.
       Confidence intervals shown are 95% Wilson intervals for PREVALENCE, not for the change.

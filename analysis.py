@@ -182,6 +182,19 @@ CORRECTION_METHOD = "benjamini-hochberg"
 
 # THE DECISION RULE, DECLARED IN ONE PLACE.
 #
+# CAVEAT, recorded so nobody mistakes one property for the other: declaring a
+# single procedure makes the rule REPRODUCIBLE. It does not make it
+# CALIBRATED. BH does not repair poorly calibrated input p-values, and at
+# n=25 with observed counts of one to three the normal approximation behind
+# those p-values is exactly where calibration is doubtful. Displaying Fisher
+# beside it does not fix that either, because Fisher gates nothing.
+#
+# What would fix it: measure THIS procedure's empirical false-discovery rate
+# and power across repeated null and mixed-null simulations using the
+# generator (which knows ground truth), or adopt a prespecified exact-test
+# procedure and recompute the whole family. Until one of those is done, treat
+# every p-value here as reproducible but not demonstrated to be well behaved.
+#
 # Exactly one procedure controls the "supported" badge: a pooled two-sided
 # two-proportion z-test, corrected with Benjamini-Hochberg across the complete
 # family of every competency measured for that role. Fisher's exact test is
@@ -655,7 +668,18 @@ def findings(con, role, curriculum=None, drift_result=None):
 # ----------------------------------------------------------- collection yield
 
 def collection_yield(con, measured_roles=None):
-    """What survives each filter, per source.
+    """CURRENT HISTORICAL-ANALYSIS ELIGIBILITY, per source.
+
+    Read the name precisely. This measures what can enter the QUARTERLY
+    analysis today. It is not a judgement on a source's future value:
+
+      * Greenhouse records already support the cross-sectional views, and can
+        join a PROSPECTIVE series once a starting inventory is frozen, because
+        successive successful snapshots establish when a requisition was first
+        OBSERVED even though the source never published a creation date.
+        "Zero usable" here means zero for the historical series, not zero ever.
+      * Source publication dates and first-observed dates are different
+        quantities and must not be pooled.
 
     "More boards" is not automatically "more evidence". Forty further
     product-tech boards could enlarge the corpus while leaving the number of
@@ -685,22 +709,41 @@ def collection_yield(con, measured_roles=None):
             "AND role IN (%s)" % qs, [src] + measured_roles).fetchone()["c"]
         rows.append({"source": src, "collected": collected, "unique": unique,
                      "in_measured_role": in_role, "date_eligible": dated,
-                     "usable": usable,
+                     "historically_eligible": usable,
+                     # Passing our role and date filters says the record can
+                     # enter OUR pipeline. It does not say the job is one the
+                     # intended trainees could actually be hired into. That is
+                     # a separate review nobody has done, so it is reported as
+                     # unassessed rather than silently assumed.
+                     "qualification_accessible": None,
+                     "accessibility_status": "Not assessed",
                      "yield_pct": round(100.0 * usable / collected, 1) if collected else 0.0})
 
     real = [r for r in rows if r["source"] not in SYNTHETIC_SOURCES]
     tot = {k: sum(r[k] for r in real)
-           for k in ("collected", "unique", "in_measured_role", "date_eligible", "usable")}
-    tot["yield_pct"] = (round(100.0 * tot["usable"] / tot["collected"], 1)
+           for k in ("collected", "unique", "in_measured_role", "date_eligible",
+                     "historically_eligible")}
+    tot["qualification_accessible"] = None
+    tot["accessibility_status"] = "Not assessed"
+    tot["yield_pct"] = (round(100.0 * tot["historically_eligible"] / tot["collected"], 1)
                         if tot["collected"] else 0.0)
     return {
         "measured_roles": measured_roles,
-        "stages": ["collected", "unique", "in_measured_role", "date_eligible", "usable"],
+        "title": "Current historical-analysis eligibility",
+        "stages": ["collected", "unique", "in_measured_role", "date_eligible",
+                   "historically_eligible", "qualification_accessible"],
         "by_source": rows,
         "real_total": tot,
-        "note": ("usable = in a measured role AND carrying a true creation date. "
-                 "Adding boards raises 'collected'; only boards whose postings are "
-                 "target-relevant and properly dated raise 'usable'."),
+        "note": ("historically_eligible = in a measured role AND carrying a true "
+                 "creation date, so it can enter the quarterly analysis TODAY. "
+                 "Adding boards raises 'collected'; only target-relevant, properly "
+                 "dated postings raise 'historically_eligible'. "
+                 "qualification_accessible is the stage that would say whether these "
+                 "jobs are reachable by the intended trainees -- NOT ASSESSED, and "
+                 "the endpoint of this funnel overstates administrator-usefulness "
+                 "until it is. Greenhouse's zero is zero for the HISTORICAL series "
+                 "only: those records already feed cross-sectional views and can "
+                 "join a prospective series once a starting inventory is frozen."),
     }
 
 
