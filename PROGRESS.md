@@ -641,6 +641,19 @@ prints sample titles and locations so identity can be checked. Final corpus:
 
 ---
 
+## NEXT SESSION: FRONTEND REBUILD -- SEE `FRONTEND_PLAN.md`
+
+The decision is made and written down in `FRONTEND_PLAN.md`. Read that file
+before touching the front end; it is written for a session starting cold.
+
+One-line summary: the current page opens with `benjamini-hochberg-adjusted
+p = 0.0225`, so a judge with no context cannot get in. Split into three layers
+-- `/` landing with NO statistics and no jargon, `/dashboard` with counts and
+plain-language verdicts, `/method` with every p-value and the audits. Nothing
+in the analysis changes.
+
+---
+
 ## THE SINGLE NEXT TASK
 
 **Manually audit the 107 unclassified real postings.**
