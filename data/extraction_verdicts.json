@@ -1,0 +1,96 @@
+{
+  "_what_this_is": "MACHINE FIRST PASS on extraction quality, NOT a completed human audit. Six real postings were read and compared against what skills.py extracted. Recorded as data so a person can disagree and re-score with tools/score_extraction.py.",
+  "_conflict_of_interest": "Claude wrote skills.py AND these verdicts, and shares the dictionary's blind spots: terms the dictionary never contained are exactly the terms an author of it is least likely to notice are absent. That is the same failure mode as measuring recall on synthetic data. Treat the missed-term list as a LOWER BOUND on what is missing.",
+  "_reviewed_by": null,
+  "_reviewed_on": null,
+  "_method": "For each posting, list skills a competent reader would say the posting asks for that the extractor did NOT return (missed), and returned terms that are not actually a stated requirement (false_positive). 'uncertain_fp' means the term may appear in company boilerplate rather than in the requirements.",
+
+  "postings": [
+    {
+      "id": "greenhouse-postman-7485114003",
+      "title": "Backend and System Engineer, Flows",
+      "extracted": ["AWS", "Azure", "GCP", "Golang", "Kubernetes", "Node.js",
+                    "Observability", "Serverless", "System Design", "Terraform"],
+      "missed": [
+        {"term": "REST API", "why": "'Develop high-quality, responsive APIs' - the dictionary has 'rest api' but not bare 'API'"},
+        {"term": "Unit Testing", "why": "'test-driven development' is written out; the dictionary only carries the abbreviation 'tdd'"},
+        {"term": "Crossplane", "why": "named explicitly; absent from the dictionary entirely"}
+      ],
+      "false_positive": [],
+      "uncertain_fp": []
+    },
+    {
+      "id": "greenhouse-postman-7419694003",
+      "title": "Senior Backend Engineer, Cloud Platform",
+      "extracted": ["CI/CD", "Git", "Java", "Kubernetes", "Software Engineering",
+                    "Spring Boot", "Terraform", "Unit Testing"],
+      "missed": [
+        {"term": "Hibernate / JPA", "why": "'Strong expertise in Java, Spring Boot, and Hibernate (JPA)' - not in dictionary"},
+        {"term": "ArgoCD", "why": "'Implement GitOps workflows (ArgoCD)' - not in dictionary"},
+        {"term": "Istio", "why": "'cloud-native tooling such as Istio, Helm, and Terraform' - not in dictionary"},
+        {"term": "Helm", "why": "same sentence - not in dictionary"},
+        {"term": "Gradle", "why": "'build and testing tools (Gradle, Maven, JUnit)' - not in dictionary"},
+        {"term": "Maven", "why": "same sentence - not in dictionary"},
+        {"term": "GitOps", "why": "named as a workflow practice - not in dictionary"},
+        {"term": "REST API", "why": "'designing and maintaining APIs and distributed backend services'"}
+      ],
+      "false_positive": [],
+      "uncertain_fp": []
+    },
+    {
+      "id": "greenhouse-postman-6672559003",
+      "title": "Senior Forward Deployed Engineer (Backend)",
+      "extracted": ["Agent Orchestration", "C++", "Java", "LLM", "Linux", "OAuth",
+                    "Observability", "Python", "Rust", "System Design"],
+      "missed": [
+        {"term": "Golang", "why": "'a backend or systems language such as Go, Python, Java, Rust, or C++' - the dictionary deliberately requires 'golang' because bare 'Go' is too risky. This is a REAL RECALL COST of that conservative choice, and it is the right trade only if we say so."},
+        {"term": "REST API", "why": "'run AI agents against their APIs'"}
+      ],
+      "false_positive": [],
+      "uncertain_fp": [
+        {"term": "OAuth", "why": "requirements mention 'identity, policy, governance' but no OAuth/JWT/SSO in the section read; the match may come from elsewhere in the advert"}
+      ]
+    },
+    {
+      "id": "greenhouse-postman-7715478003",
+      "title": "Senior Fullstack Software Engineer - (Customer Journey)",
+      "extracted": ["Agent Orchestration", "HTML/CSS", "JavaScript", "React", "TypeScript"],
+      "missed": [
+        {"term": "Next.js", "why": "'modern frameworks like React or Next.js' - not in dictionary"}
+      ],
+      "false_positive": [],
+      "uncertain_fp": [
+        {"term": "Agent Orchestration", "why": "requirements say 'AI-assisted workflows', which is not the same as building agent orchestration"},
+        {"term": "TypeScript", "why": "not in the requirements section read"}
+      ]
+    },
+    {
+      "id": "greenhouse-postman-7766958003",
+      "title": "Senior Software Engineer, Client Platform",
+      "extracted": ["JavaScript", "React", "Software Engineering", "TypeScript"],
+      "missed": [],
+      "false_positive": [],
+      "uncertain_fp": [],
+      "note": "Extraction is fine. The ROLE assignment is wrong: '8+ years in Frontend software engineering' - this is not a Backend Developer vacancy. Confirms the classifier verdict."
+    },
+    {
+      "id": "greenhouse-postman-7767101003",
+      "title": "Senior Software Engineer - Fern",
+      "extracted": ["AWS", "Agent Orchestration", "Software Engineering", "TypeScript"],
+      "missed": [],
+      "false_positive": [],
+      "uncertain_fp": [
+        {"term": "AWS", "why": "not in the requirements section; likely company or product boilerplate"},
+        {"term": "Agent Orchestration", "why": "not in the requirements section; likely boilerplate"}
+      ],
+      "note": "The clearest example of the construct-validity problem: the stated requirements are '5+ years software engineering' and 'bonus: TypeScript'. Terms matched elsewhere in the advert are not requirements."
+    }
+  ],
+
+  "_patterns": [
+    "RECALL: the dictionary misses a great deal of ordinary backend tooling - Hibernate/JPA, ArgoCD, Istio, Helm, Gradle, Maven, GitOps, Next.js, Crossplane. Nine distinct misses across six postings.",
+    "RECALL: spelled-out forms are missed where only the abbreviation is an alias ('test-driven development' vs 'tdd'), and bare 'API' is missed because only 'rest api' is listed.",
+    "RECALL: the deliberate refusal to match bare 'Go' costs a real hit. That was the right call to avoid false positives, but the cost should be stated rather than hidden.",
+    "CONSTRUCT VALIDITY: several matches come from company or product boilerplate rather than the requirements section. A mention is not a requirement, and counting them the same way inflates every share."
+  ]
+}

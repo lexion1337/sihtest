@@ -11,8 +11,32 @@
     "greenhouse": "updated_at is LAST-MODIFIED, not creation -> text source only, excluded from time bins"
   },
   "boards": [
-    { "ats": "greenhouse", "token": "postman",  "company": "Postman",  "verified": true },
-    { "ats": "lever",      "token": "meesho",   "company": "Meesho",   "verified": true },
-    { "ats": "lever",      "token": "cred",     "company": "CRED",     "verified": true }
-  ]
+    {
+      "ats": "greenhouse",
+      "token": "postman",
+      "company": "Postman",
+      "verified": true
+    },
+    {
+      "ats": "lever",
+      "token": "meesho",
+      "company": "Meesho",
+      "verified": true
+    },
+    {
+      "ats": "lever",
+      "token": "cred",
+      "company": "CRED",
+      "verified": true
+    },
+    {
+      "ats": "lever",
+      "token": "mindtickle",
+      "company": "Mindtickle",
+      "verified": true,
+      "probed_on": "2026-09-16",
+      "note": "found by tools/probe_boards.py"
+    }
+  ],
+  "_identity_warning": "A live token is not the company you assumed. 'porter' on Lever is a US healthcare staffing firm, not the Indian logistics company -- it returned 26 nurse-practitioner vacancies in Massachusetts and Florida. ALWAYS check sample titles and locations before adding a board, not just that the endpoint returns 200."
 }

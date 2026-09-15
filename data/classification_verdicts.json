@@ -1,0 +1,777 @@
+{
+  "_what_this_is": "MACHINE FIRST PASS, NOT A COMPLETED HUMAN AUDIT. Claude labelled every real posting title against the three measured roles. It is recorded as data so a person can disagree with any single row, change the letter, and re-run tools/score_classification.py to get new numbers. Until a human has reviewed it, quote the result as 'first-pass estimate, pending human confirmation'.",
+  "_conflict_of_interest": "Claude also wrote the classifier being graded here. An independent reviewer is worth more than this file. Its value is that it removes an hour of setup, not that it settles the question.",
+  "_reviewed_by": null,
+  "_reviewed_on": null,
+  "_legend": {
+    "unclassified": {
+      "O": "genuinely out of scope for Data Analyst / Backend Developer / Business Analyst",
+      "M": "MISSED - really is one of the three roles and the classifier should have caught it",
+      "A": "ambiguous - a reasonable person could go either way"
+    },
+    "assigned": {
+      "C": "correctly assigned",
+      "W": "WRONG - the assigned role does not fit",
+      "A": "ambiguous"
+    }
+  },
+  "unclassified": [
+    {
+      "title": "area collections manager bangalore -flows",
+      "v": "O",
+      "why": "field debt collection"
+    },
+    {
+      "title": "area collections manager chennai- flows",
+      "v": "O",
+      "why": "field debt collection"
+    },
+    {
+      "title": "area collections manager hyderabad -flows",
+      "v": "O",
+      "why": "field debt collection"
+    },
+    {
+      "title": "area collections manager, pune (recoveries)",
+      "v": "O",
+      "why": "field debt collection"
+    },
+    {
+      "title": "business development & partnerships",
+      "v": "O",
+      "why": "business development"
+    },
+    {
+      "title": "business development & strategic partnerships - d2c",
+      "v": "O",
+      "why": "business development"
+    },
+    {
+      "title": "capital partnerships",
+      "v": "O",
+      "why": "finance/partnerships"
+    },
+    {
+      "title": "copywriter",
+      "v": "O",
+      "why": "content"
+    },
+    {
+      "title": "lead – on deck payments",
+      "v": "A",
+      "why": "unclear: product or ops lead"
+    },
+    {
+      "title": "long form content writer/editor",
+      "v": "O",
+      "why": "content"
+    },
+    {
+      "title": "regional collection manager bangalore - flows",
+      "v": "O",
+      "why": "field debt collection"
+    },
+    {
+      "title": "Assistant Manager - Business Finance",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Assistant Manager - Ops",
+      "v": "O",
+      "why": "operations"
+    },
+    {
+      "title": "Assistant Manager - Performance Marketing",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Assistant Manager Finance – Logistics Intelligence",
+      "v": "A",
+      "why": "finance role with an analytics flavour"
+    },
+    {
+      "title": "Associate Compliance Manager",
+      "v": "O",
+      "why": "compliance"
+    },
+    {
+      "title": "Associate Director - Business Finance",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Associate Director - Commerce Platform",
+      "v": "A",
+      "why": "platform leadership, scope unclear"
+    },
+    {
+      "title": "Brand Associate",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Cluster Head  ( Security & Investigation)",
+      "v": "O",
+      "why": "physical security operations"
+    },
+    {
+      "title": "Cluster Head- Last mile - Kerala",
+      "v": "O",
+      "why": "logistics operations"
+    },
+    {
+      "title": "Creative Manager",
+      "v": "O",
+      "why": "creative"
+    },
+    {
+      "title": "Data Scientist III",
+      "v": "A",
+      "why": "data science, adjacent to but not Data Analyst; our scope excludes scientist deliberately"
+    },
+    {
+      "title": "Deputy Manager - Business Finance",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Director - Product",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Director Data Science",
+      "v": "A",
+      "why": "data science leadership"
+    },
+    {
+      "title": "Director- Business Finance",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Engineering Manager – AI Engineering",
+      "v": "A",
+      "why": "engineering management, not an IC developer vacancy"
+    },
+    {
+      "title": "Engineering Manager- Platform",
+      "v": "A",
+      "why": "engineering management"
+    },
+    {
+      "title": "GTM & Enterprise Sales Consultant – Meesho AI Services (MAS)",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Group Product Manager",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Head of Meesho Foundation",
+      "v": "O",
+      "why": "CSR leadership"
+    },
+    {
+      "title": "Manager - Business Finance",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Manager - DAU Growth",
+      "v": "A",
+      "why": "growth, often analytics-heavy"
+    },
+    {
+      "title": "Manager - HR COE",
+      "v": "O",
+      "why": "HR"
+    },
+    {
+      "title": "Manager - User Experience : F&E",
+      "v": "O",
+      "why": "UX/operations"
+    },
+    {
+      "title": "Manager HR - COE",
+      "v": "O",
+      "why": "HR"
+    },
+    {
+      "title": "Manager HR – Learning & Development",
+      "v": "O",
+      "why": "HR"
+    },
+    {
+      "title": "Manager-  Legal",
+      "v": "O",
+      "why": "legal"
+    },
+    {
+      "title": "Principal Data Scientist",
+      "v": "A",
+      "why": "data science"
+    },
+    {
+      "title": "Product Manager  (Internal Platform)",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Program Manager",
+      "v": "O",
+      "why": "programme management"
+    },
+    {
+      "title": "Security Architect - AI-Powered Security Engineering",
+      "v": "A",
+      "why": "security engineering, technical but not backend development"
+    },
+    {
+      "title": "Senior Associate - Monetisation",
+      "v": "O",
+      "why": "commercial"
+    },
+    {
+      "title": "Senior Associate - Performance Marketing",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Senior Associate / Assistant Manager - Program Ops (Fulfilment & Experience)",
+      "v": "O",
+      "why": "operations"
+    },
+    {
+      "title": "Senior Business Development Manager (SBDM)",
+      "v": "O",
+      "why": "business development"
+    },
+    {
+      "title": "Senior Manager - Commerce Platform",
+      "v": "A",
+      "why": "platform leadership, scope unclear"
+    },
+    {
+      "title": "Senior Manager - FnE",
+      "v": "O",
+      "why": "operations"
+    },
+    {
+      "title": "Senior Manager - Production",
+      "v": "O",
+      "why": "operations"
+    },
+    {
+      "title": "Senior Manager - User Experience : F&E",
+      "v": "O",
+      "why": "UX/operations"
+    },
+    {
+      "title": "Senior Manager – Latent Last Mile",
+      "v": "O",
+      "why": "logistics operations"
+    },
+    {
+      "title": "Senior Manager – Self Pickup : Last Mile",
+      "v": "O",
+      "why": "logistics operations"
+    },
+    {
+      "title": "Senior Product Manager",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Senior Talent Partner ( Non-Tech Hiring)",
+      "v": "O",
+      "why": "recruitment"
+    },
+    {
+      "title": "AI Engineer, Internship - Summer 2026 - Applications Open Now",
+      "v": "A",
+      "why": "engineering internship, AI focus"
+    },
+    {
+      "title": "Account Development Representative",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Account Executive",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Applied AI Scientist, Small Language Model and AI Training",
+      "v": "A",
+      "why": "research/ML science"
+    },
+    {
+      "title": "Assistant Controller",
+      "v": "O",
+      "why": "finance"
+    },
+    {
+      "title": "Channel Sales Manager, Korea",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Corporate Solutions Engineer",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Corporate Solutions Engineer, Nordics",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Corporate Solutions Engineer, UK",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Customer Success Engineer",
+      "v": "O",
+      "why": "customer success"
+    },
+    {
+      "title": "Customer Success Engineer, French Speaking",
+      "v": "O",
+      "why": "customer success"
+    },
+    {
+      "title": "Customer Success Engineer, German Speaking",
+      "v": "O",
+      "why": "customer success"
+    },
+    {
+      "title": "Customer Success Engineer, Spanish Speaking",
+      "v": "O",
+      "why": "customer success"
+    },
+    {
+      "title": "Customer Success Engineer/Devops",
+      "v": "A",
+      "why": "customer success but explicitly DevOps"
+    },
+    {
+      "title": "Digital Named Enterprise Account Executive",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Enterprise Account Executive",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Enterprise Solutions Engineer",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Enterprise Solutions Engineer, Israel",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Enterprise Solutions Engineer, Italy",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Enterprise Solutions Engineer, UK",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Field Marketing Manager",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Head of AI Platform Engineering",
+      "v": "A",
+      "why": "platform engineering leadership"
+    },
+    {
+      "title": "Head of Engineering, Infrastructure & SRE",
+      "v": "A",
+      "why": "infrastructure leadership, clearly backend domain but a management vacancy"
+    },
+    {
+      "title": "Head of Financial Services, Americas",
+      "v": "O",
+      "why": "commercial leadership"
+    },
+    {
+      "title": "Key Account Director",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Member of Technical Staff, AI Agent Development Lead",
+      "v": "M",
+      "why": "IC software engineering role; MTS is an engineering title"
+    },
+    {
+      "title": "Member of Technical Staff, AI Reliability & Monitoring Engineering Lead",
+      "v": "M",
+      "why": "IC software engineering role"
+    },
+    {
+      "title": "Mid-Market Account Executive",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Principal Offensive Security Engineer",
+      "v": "A",
+      "why": "security engineering"
+    },
+    {
+      "title": "Regional Channel Sales Leader, North America",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "SEO Manager",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "SMB Account Executive, Germany",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Sales Compensation Analyst",
+      "v": "A",
+      "why": "analyst title but sales compensation domain"
+    },
+    {
+      "title": "Senior Commercial Counsel",
+      "v": "O",
+      "why": "legal"
+    },
+    {
+      "title": "Senior Demand Generation Manager",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Senior Developer Advocate",
+      "v": "O",
+      "why": "developer relations, not a development vacancy"
+    },
+    {
+      "title": "Senior Engineer - Fabric Gateway",
+      "v": "M",
+      "why": "gateway engineering is server-side development"
+    },
+    {
+      "title": "Senior Engineer, IAM",
+      "v": "M",
+      "why": "identity and access management is backend service work"
+    },
+    {
+      "title": "Senior Engineering Manager, API Catalog",
+      "v": "A",
+      "why": "backend domain but an engineering management vacancy"
+    },
+    {
+      "title": "Senior Manager, Customer Success Engineering",
+      "v": "O",
+      "why": "customer success leadership"
+    },
+    {
+      "title": "Senior Mid-Market Account Executive",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Senior Solutions Architect - London, UK",
+      "v": "A",
+      "why": "solutions architecture, often pre-sales"
+    },
+    {
+      "title": "Solutions Consultant",
+      "v": "O",
+      "why": "pre-sales"
+    },
+    {
+      "title": "Staff Engineer – Observability Platform",
+      "v": "M",
+      "why": "platform/observability engineering is backend infrastructure development"
+    },
+    {
+      "title": "Strategic Solutions Engineering, Netherlands/Sweden/Denmark",
+      "v": "O",
+      "why": "pre-sales solutions engineering"
+    },
+    {
+      "title": "Technical Community Manager",
+      "v": "O",
+      "why": "community/devrel"
+    },
+    {
+      "title": "Director – Sales, Meesho AI Services (MAS) | North India",
+      "v": "O",
+      "why": "sales leadership"
+    },
+    {
+      "title": "Manager - Performance Marketing",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "Manager – GTM & Sales Strategy, Meesho AI Services (MAS)",
+      "v": "O",
+      "why": "sales strategy"
+    },
+    {
+      "title": "Manager – HRBP & ER",
+      "v": "O",
+      "why": "HR"
+    },
+    {
+      "title": "Product Manager II - User Discovery",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Trainee - Recruitment Coordinator",
+      "v": "O",
+      "why": "recruitment"
+    },
+    {
+      "title": "AI Product Engineer",
+      "v": "A",
+      "why": "engineering with a product focus; specialism unstated"
+    },
+    {
+      "title": "Account Executive, Commercial [NAMER]",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Account Manager [NAMER]",
+      "v": "O",
+      "why": "sales/account management"
+    },
+    {
+      "title": "Customer Success Engineer - II",
+      "v": "O",
+      "why": "customer success"
+    },
+    {
+      "title": "Group Product Manager (Manager Effectiveness)",
+      "v": "O",
+      "why": "product management"
+    },
+    {
+      "title": "Lead Design Engineer",
+      "v": "A",
+      "why": "'design engineer' is ambiguous across hardware, UX and software"
+    },
+    {
+      "title": "Learning Consultant",
+      "v": "O",
+      "why": "L&D"
+    },
+    {
+      "title": "Principal Customer Marketing Manager",
+      "v": "O",
+      "why": "marketing"
+    },
+    {
+      "title": "SME Engineer IT",
+      "v": "O",
+      "why": "internal IT support"
+    },
+    {
+      "title": "Security and Automation Engineer",
+      "v": "A",
+      "why": "security/automation engineering, adjacent to backend"
+    },
+    {
+      "title": "Senior Associate, People Success",
+      "v": "O",
+      "why": "HR"
+    },
+    {
+      "title": "Senior Business Development Representative",
+      "v": "O",
+      "why": "business development"
+    },
+    {
+      "title": "Senior Instructional Designer",
+      "v": "O",
+      "why": "instructional design"
+    },
+    {
+      "title": "Senior Manager, Business Development - Enterprise",
+      "v": "O",
+      "why": "business development"
+    },
+    {
+      "title": "Senior Solutions Architect (NAMER)",
+      "v": "A",
+      "why": "solutions architecture, often pre-sales"
+    },
+    {
+      "title": "Specialist, Information Security & Privacy",
+      "v": "O",
+      "why": "security/privacy compliance, not development"
+    },
+    {
+      "title": "Specialist, Information Security and Privacy",
+      "v": "O",
+      "why": "security/privacy compliance, not development"
+    },
+    {
+      "title": "Staff Engineer",
+      "v": "M",
+      "why": "a staff-level IC engineering vacancy; our rules require an explicit backend cue and missed it"
+    },
+    {
+      "title": "Account Development Representative (Portuguese & Spanish Speaking)",
+      "v": "O",
+      "why": "sales"
+    },
+    {
+      "title": "Commercial Counsel",
+      "v": "O",
+      "why": "legal"
+    },
+    {
+      "title": "Product Builder",
+      "v": "A",
+      "why": "unusual title; engineering or product, unclear"
+    },
+    {
+      "title": "Senior Engineer, Search",
+      "v": "M",
+      "why": "search infrastructure is server-side development"
+    },
+    {
+      "title": "Senior Fullstack Engineer - Codegen",
+      "v": "A",
+      "why": "fullstack includes backend but is not only backend"
+    },
+    {
+      "title": "Senior Software Engineer, Front-End",
+      "v": "O",
+      "why": "explicitly front-end"
+    },
+    {
+      "title": "Staff Product Manager",
+      "v": "O",
+      "why": "product management"
+    }
+  ],
+  "assigned": [
+    {
+      "title": "Backend and System Engineer, Flows",
+      "v": "C",
+      "why": "explicitly backend"
+    },
+    {
+      "title": "Engineering Manager -Backend",
+      "v": "W",
+      "why": "a management vacancy, not a developer vacancy; backend domain is not the same as backend developer"
+    },
+    {
+      "title": "Senior Backend Engineer, Cloud Platform",
+      "v": "C",
+      "why": "explicitly backend"
+    },
+    {
+      "title": "Senior Forward Deployed Engineer (Backend)",
+      "v": "C",
+      "why": "explicitly backend"
+    },
+    {
+      "title": "Senior Fullstack Software Engineer - (Customer Journey)",
+      "v": "A",
+      "why": "fullstack includes backend but is not only backend"
+    },
+    {
+      "title": "Senior Software Engineer - Fern",
+      "v": "A",
+      "why": "generic software engineer title, specialism not stated"
+    },
+    {
+      "title": "Senior Software Engineer Manager - Ecosystems & Integration",
+      "v": "W",
+      "why": "management vacancy"
+    },
+    {
+      "title": "Senior Software Engineer, Client Platform",
+      "v": "W",
+      "why": "'Client Platform' indicates client-side, not server-side"
+    },
+    {
+      "title": "Senior Software Engineer, Monetization",
+      "v": "A",
+      "why": "generic software engineer title"
+    },
+    {
+      "title": "Software Development Engineer III -Backend",
+      "v": "C",
+      "why": "explicitly backend"
+    },
+    {
+      "title": "Software Development Engineer III Data",
+      "v": "W",
+      "why": "data engineering, which our scope excludes"
+    },
+    {
+      "title": "Software Development Engineer III DevOps",
+      "v": "W",
+      "why": "DevOps/platform operations, not backend development"
+    },
+    {
+      "title": "Software Engineer",
+      "v": "A",
+      "why": "generic software engineer title"
+    },
+    {
+      "title": "Software Engineer, IAM",
+      "v": "C",
+      "why": "identity services are backend"
+    },
+    {
+      "title": "Staff Software Engineer - Fern",
+      "v": "A",
+      "why": "generic software engineer title"
+    },
+    {
+      "title": "Staff Software Engineer, Business Platform",
+      "v": "A",
+      "why": "generic; 'Business Platform' unclear"
+    },
+    {
+      "title": "Staff Software Engineer- Codegen",
+      "v": "A",
+      "why": "generic; code generation tooling could be either"
+    },
+    {
+      "title": "AM/ Manager - Risk & Decision Science",
+      "v": "A",
+      "why": "decision science is adjacent to Data Analyst; could equally be data science"
+    },
+    {
+      "title": "Software Engineer, Business Systems",
+      "v": "A",
+      "why": "'Business Systems' often means internal IT/ERP rather than product backend"
+    }
+  ]
+}

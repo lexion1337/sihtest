@@ -582,6 +582,65 @@ established.
 
 ---
 
+## THE AUDITS -- FIRST-PASS NUMBERS (2026-09-16)
+
+Both audits the reviews asked for now exist as DATA, not prose:
+`data/classification_verdicts.json` and `data/extraction_verdicts.json`, scored
+by `tools/score_classification.py` and `tools/score_extraction.py`. Change any
+verdict letter and the numbers move.
+
+**These are a MACHINE first pass.** Claude wrote the classifier and the
+extractor and also wrote these verdicts, so this is marking its own homework,
+and on extraction it shares the dictionary's blind spots. Quote them as
+"first-pass, pending human confirmation" and get a teammate to spot-check.
+
+### Role classifier: precision 31-50%, recall 13-42%
+
+| | count |
+|---|---|
+| Unclassified, genuinely out of scope | 98 |
+| Unclassified, MISSED (should have been caught) | 7 |
+| Unclassified, ambiguous | 26 |
+| Assigned, correct | 5 |
+| Assigned, WRONG | 5 |
+| Assigned, ambiguous | 6 |
+
+**Half of all assignments are wrong.** The cause is `software engineer`,
+which is far too broad: it captured a front-end role ("Client Platform"), a data
+engineering role, a DevOps role and two engineering-management vacancies. The
+classifier was described as "conservative". It is not conservative, it is
+imprecise. Fixing it is a real task, not a tidy-up.
+
+### Extraction on real text: recall 72-75%, precision 88-100%
+
+Six real postings read in full. Twelve distinct missed terms, nine of them
+simply absent from the 136-term dictionary: **Hibernate/JPA, ArgoCD, Istio,
+Helm, Gradle, Maven, GitOps, Next.js, Crossplane**. Three more are alias gaps:
+"test-driven development" spelled out (only `tdd` is listed), bare "API" (only
+`rest api`), and bare "Go" (deliberately excluded to avoid false positives --
+a defensible choice whose cost is now measured rather than hidden).
+
+Construct validity showed up too: in one posting the only stated requirements
+were "5+ years software engineering" and "bonus: TypeScript", yet AWS and Agent
+Orchestration were matched from elsewhere in the advert. **A mention is not a
+requirement**, and counting them alike inflates every share.
+
+### Board expansion: a cautionary result
+
+`tools/probe_boards.py` tried 41 candidate tokens. **Two were live** -- a ~5%
+hit rate on guessing. Adding both took the corpus from 125 to 173 real
+postings, but historically-eligible records went from 5 to 6 and the yield
+FELL from 4.0% to 3.5%. More boards is not more evidence.
+
+Worse: **`porter` on Lever is a US healthcare staffing firm**, not the Indian
+logistics company. It contributed 26 nurse-practitioner vacancies in
+Massachusetts and Florida before being caught and removed. Probing proved the
+token was LIVE; it said nothing about whose board it was. `probe_boards.py` now
+prints sample titles and locations so identity can be checked. Final corpus:
+147 real postings from 4 verified boards.
+
+---
+
 ## THE SINGLE NEXT TASK
 
 **Manually audit the 107 unclassified real postings.**
