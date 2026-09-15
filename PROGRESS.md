@@ -3,7 +3,7 @@
 **Update this file at the end of every session.** Read `CLAUDE.md` first — it
 holds the problem statement, the honesty rules, and the architecture.
 
-Last updated: **2026-09-15** (session 3)
+Last updated: **2026-09-16** (session 4)
 Deadline: **SIH internal hackathon, 16 September 2026 — TOMORROW.**
 Venue: REVA Rangasthala / Amphi Theatre, 8:30 AM - 4:30 PM.
 Bar for internal: **30% of the project ready**, measured against the problem
@@ -245,9 +245,16 @@ Engineering 32%).
 
 **600 postings is not enough to make quarterly claims, and the tool now says so
 itself.** At n=25 a skill's share moves ±10 percentage points on sampling noise
-alone. During this session the analysis labelled Google Sheets "rising +12 pp"
-for Data Analyst when the generator's own curve for it is *declining*
-(0.30 → 0.18). That is a false finding produced purely by small buckets.
+alone. The analysis once labelled Google Sheets "rising +12 pp" for Data
+Analyst when the generator's own curve for it is *declining* (0.30 → 0.18).
+
+**Describe that correctly.** It is NOT a false discovery. p=0.221 produced no
+rejection, so nothing was ever discovered — a false positive requires a
+rejection. It is a **noisy sign reversal that the decision rule correctly
+withheld from the alert list**, which is a real and useful thing for the tool
+to do, but a different claim. Wrong-direction estimates should be tracked as
+their own category. This wording was corrected in session 4 after external
+review; the earlier phrasing overclaimed.
 
 Rather than hide it, `analysis.py` now runs a **two-proportion z-test** between
 the baseline window and the latest quarter, and the UI marks every row
@@ -461,49 +468,148 @@ data arrived, so no artifact was produced. Producing one from synthetic
 postings would have been worthless: recall on the seed corpus is ~100% by
 construction, because the generator and extractor share `skills.py`.
 
+## SESSION 4 — EXTERNAL STATISTICAL AND DESIGN REVIEW, IMPLEMENTED
+
+An external review (GPT/"Astra", full text in the team's Downloads) produced
+the sharpest criticism the project has had. What follows is what changed.
+
+### The criticism that matters most, and is NOT fixed by code
+
+> "Even with a million perfectly dated, correctly extracted advertisements, you
+> have not shown that the missing syllabus terms represent missing competence,
+> that employers face a shortage of that competence, or that teaching it would
+> improve placement. Your instrument measures vocabulary differences and then
+> recommends treatment."
+
+This is non-identification and it is correct. A syllabus keyword can be absent
+while the competency is taught under a broader learning outcome, and present
+while taught badly. Advertisements observe employer demand *language*, not
+competent labour supply — so "oversupplied" cannot be inferred from a
+curriculum diff at all. Every output was relabelled accordingly, and the
+Methods "Limits" row now states this explicitly in the UI.
+
+### Three defects it found in our code, all confirmed by measurement
+
+1. **No multiple-comparison correction.** "Significant" was raw p<0.05 across
+   ~40 tests per role, where ~2 false alerts are expected by chance. Now
+   Benjamini-Hochberg, reported ALONGSIDE raw p rather than relabelling it.
+   Data Analyst gaps 9 → 4; Backend 9 → 5; Business Analyst 4 → 2.
+2. **"Never seen" used the latest-quarter denominator.** `AWS: 0 of 25` was
+   really `0 of 201` across 11 quarters — understating the evidence 8×.
+3. **Latent circularity in the role classifier.** It matched on language names
+   that are also measured competencies, so a change in that skill could move
+   both the numerator and who enters the denominator. Measured first: fired on
+   0 of 725 titles, so latent not active. Removed anyway.
+
+### Statistical work added
+
+- **Fisher exact cross-check.** The z-test is a normal approximation; at n=25
+  near 5% prevalence expected cell counts fall to 1-3. Fisher runs alongside as
+  a conservative check. NOT substituted — Fisher is severely conservative here
+  (simulated actual rejection ≈ 0.08/0.88/2.22% at 5/10/20% prevalence against
+  nominal 5%, versus the z-test's 1.98/4.87/5.49%).
+- **Newcombe intervals for the CHANGE.** Wilson intervals describe each
+  prevalence; whether two of them overlap is not a test of the difference.
+- **Threshold sensitivity.** A prespecified 3×3 grid reports WHICH
+  recommendations persist. For Data Analyst, LLM, Prompt Engineering, Agent
+  Orchestration and dbt pass in **all nine cells** — they do not depend on
+  where the line was drawn.
+
+### Open-vocabulary discovery — `phrases.py`
+
+The dictionary is closed, so an unlisted competency has prevalence zero *by
+construction*. That made "detects emerging skills" unsupportable. `phrases.py`
+finds dictionary-absent 1-4 word phrases in requirement-like sentences, counts
+once per posting, and ranks by DISTINCT EMPLOYERS first (ten copied adverts
+from one employer are one lead, not ten).
+
+**It found real holes: API (65 postings, 2 employers), AI (27), DevOps (21) and
+SRE (4) are genuine competencies the 136-term dictionary misses entirely.**
+
+It adds nothing to the dictionary and claims nothing about rising — with five
+time-series-eligible real postings there is no series to measure a rise
+against. Discovery and confirmation stay separate, or every dictionary update
+manufactures apparent emergence.
+
+### The number that should change how you pitch
+
+Simulated power for a two-sided Fisher test detecting a **10 percentage-point**
+shift: **n=25 → 8.6%**, n=100 → 44.4%, n=200 → 76.8%, n=300 → 92.0%. Under BH
+across 40 skills, power at n=25 is ~0.2%.
+
+Our generator plants effects 3-5× larger than that (LLM runs 0.01 → 0.46, a
+45pp shift), which is why the detector finds them at n=25. **The honest claim
+is "at n=25 we can detect a 40-point shift; we cannot detect a 10-point shift"**
+— and that is a stronger, more precise beat than the significance test alone.
+
+### Front end rebuilt around a decision brief
+
+Six equal cards became a first screen that fits 1366×768 without scrolling:
+provenance banner, role and syllabus context, one featured review candidate,
+its action, and a visible discarded comparison. Measured: hero bottom 629px,
+discarded strip 758px.
+
+**The most valuable single addition:** each finding now carries the composition
+of the records that produced *its* number. The featured LLM finding reads
+"Synthetic test finding — 0 real / 12 synthetic of the 12 counted". The
+corpus-wide MIXED banner would otherwise have let a reader assume it was real.
+
+Five destinations: Review findings · Location evidence · Syllabus coverage ·
+Unmapped terms · Methods & data. The eight-line chart is gone from the default
+view. The evidence drawer is now a calculation audit that exposes the
+denominator, not just the supporting examples, and highlights the matched
+sentence so a reader can judge whether a mention is a requirement or incidental
+company description.
+
+### What was deliberately NOT built
+
+The review's December programme — employer survey panels, opt-in graduate
+tracer cohorts, trade-specific evidence chains, adoption pilots — needs
+institutional access this team does not have. Correct as direction, wrong as a
+build. Recorded as roadmap, not attempted.
+
+### One genuinely new data lead
+
+**Maharashtra AITT July 2019 ITI graduates tracer study** (published July 2021):
+trade- and district-level employment outcomes, first-employment timing, wages.
+Real, official, Maharashtra-specific, and it covers *placement outcomes* — one
+of the six PS inputs currently marked absent. Chase it.
+
+The review did NOT find an openly licensed, dated, description-bearing corpus
+of Indian job postings. Two independent searches have now failed. Treat that as
+established.
+
+---
+
 ## THE SINGLE NEXT TASK
 
-**Both of the cheap PS outputs are now BUILT (see items 9 and 10 above), so
-coverage is roughly 6 of 15 — comfortably over the 30% bar.**
+**Manually audit the 107 unclassified real postings.**
 
-What remains is not engineering. In priority order for the morning:
+It is the only remaining item from the review that a person must do and code
+cannot. At 107 records it is an afternoon, and it is more useful than any
+classifier. Split genuine out-of-scope roles from ambiguous ones and missed
+synonyms, then report precision among assigned records and recall among
+genuinely in-scope ones. "18 of 125" currently measures neither.
 
-1. **Rehearse the demo sequence out loud, twice.** Section 12 of
-   PROJECT_CONTEXT has the running order. Lead with the three-second image,
-   not the dashboard.
-2. **Mark up 10 of the 30 postings in `data/recall_review.md`.** A real recall
-   number is the answer to the second-hardest judge question and is the single
-   biggest hole left.
-3. **Know the coverage-skew numbers cold** — only 18 of 125 real postings are
-   in a measured role. Say it before a judge finds it.
-
-Superseded (kept for the record, both now done):
-
-1. **Demand by LOCATION.** The data is already ingested and currently
-   discarded. 31 distinct location strings across the real corpus, **66
-   postings in India**, concentrated in Bangalore (46). Needs a normaliser —
-   `Bangalore, Karnataka` / `bengaluru` / `Bengaluru, Karnataka, India` are one
-   city written three ways. This is the first step toward the PS's
-   "district-level training plans".
-
-2. **Flag obsolete or oversupplied courses.** Reverse the existing diff: skills
-   the curriculum teaches that demand does not want. Tells an administrator
-   what to **stop** doing, which is a better slide than the gap table.
-
-Then **reframe every UI string from student-facing to administrator-facing**
-(copy only), and **rehearse the demo sequence out loud, twice**.
-
-**Explicitly dropped: the pytest suite (T5).** Tests protect a codebase over
-weeks of change. There is one day left and then a demo. Wrong investment now;
-revisit before the Grand Finale.
-
-### If you find 20 spare minutes
-
-Mark up 10 of the 30 postings in `data/recall_review.md` by hand. A real recall
-number is the answer to the second-hardest judge question, and right now that
-answer is "we measured a proxy".
+After that, in order:
+1. **Board token hunt.** 3 boards → 40+. Pure legwork, parallelisable across
+   the team, and the only thing that fixes sample size. Prioritise Lever: its
+   dates are usable, Greenhouse's are not.
+2. **Mark up `data/recall_review.md`.** 30 real postings await hand markup. No
+   real recall number exists until someone does it.
+3. **Start prospective collection now.** Freeze the first complete crawl of
+   each board as a starting inventory, then record first-seen/last-seen per
+   requisition. Existing open roles are pre-existing stock with unknown start
+   dates, not newly opened roles — conflating those manufactures a hiring spike.
 
 ## SESSION LOG
+
+**Session 4 - 2026-09-16.** Implemented the external statistical and design
+review. Added BH correction, Fisher exact cross-check, Newcombe change
+intervals, threshold sensitivity and open-vocabulary discovery (`phrases.py`).
+Fixed three confirmed defects. Rebuilt the front end around a decision brief
+with per-finding provenance. Corrected the Google Sheets framing in this file
+and the README: it was a withheld sign reversal, not a caught false discovery.
 
 **Session 3 - 2026-09-09 and 2026-09-15.** Git root fixed (the repo was rooted
 at `C:\Users\ayaan`, so any `git add` would have staged AppData and

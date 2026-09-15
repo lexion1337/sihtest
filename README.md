@@ -135,20 +135,35 @@ All of these are computed live. Run `python analysis.py` and watch them appear.
 **Corpus:** 725 postings · 125 real · 136 skills tracked · 22 curriculum
 subjects teaching 38 skills.
 
-**Curriculum gap, Data Analyst, 2026-Q3 (n=25):** 17 candidate gaps, of which
-**only 9 survive a significance test**. Examples:
+**Curriculum gap, Data Analyst, 2026-Q3 (n=25):** 17 candidates, of which 9
+survive an uncorrected test and **only 4 survive once corrected for testing ~40
+competencies at once**. Examples:
 
 | Skill | Share | Sample | p-value | Verdict |
 |---|---|---|---|---|
-| LLM | 48.0% | 12 of 25 | 0.0001 | Real signal |
-| Data Cleaning | 56.0% | 14 of 25 | 0.045 | Real signal |
-| Power BI | 76.0% | 19 of 25 | 0.355 | **Not significant — we threw it out** |
+| LLM | 48.0% | 12 of 25 | 0.0001 | Supported after correction |
+| dbt | 32.0% | 8 of 25 | 0.002 | Supported after correction |
+| Power BI | 76.0% | 19 of 25 | 0.355 | **Not supported — we show it anyway** |
+
+Those p-values are **raw**. We also correct for testing ~40 competencies at
+once (Benjamini-Hochberg), because at p<0.05 across 40 tests you expect about
+two false alerts by chance. After correction the Data Analyst list goes from
+**9 to 4**. We report both numbers. Never quote the uncorrected one alone.
 
 **Demand by location (India, 666 postings, 20 cities):** Bengaluru 115 ·
 **Pune 67 · Mumbai 62 · Nagpur 27** (the three Maharashtra cities).
 
 **Extraction on real text:** 5.4 skills per posting on the roles we measure,
 versus 11.8 on synthetic. See §8 — this is a weakness, and we say so.
+
+**Threshold robustness:** re-running the decision across nine different
+threshold combinations, the same four competencies (LLM, Prompt Engineering,
+Agent Orchestration, dbt) pass in **every** cell. They don't depend on where we
+drew the line.
+
+**Unmapped terms:** our dictionary has 136 terms, so anything outside it is
+*unmeasured*, not absent. Scanning real postings for terms we DON'T track found
+**API, AI, DevOps and SRE** — genuine competencies we were blind to.
 
 ---
 
@@ -159,12 +174,19 @@ versus 11.8 on synthetic. See §8 — this is a weakness, and we say so.
 Most projects show you their best numbers. We run a **statistical significance
 test** on every single one and mark the ones that fail.
 
-Real example from our own data: the system initially reported *"Google Sheets:
-rising +12 percentage points."* It was **wrong** — pure random noise from a
-small sample. The significance test caught it (p=0.221) and demoted it.
+Real example from our own data: the system once reported *"Google Sheets:
+rising +12 percentage points"* when that skill was actually **falling**. The
+decision rule withheld it (p=0.221).
+
+Be precise about what that shows, because a sharp judge will be: nothing was
+ever "discovered" — a p of 0.221 means no rejection happened at all. It is a
+**noisy wrong-direction estimate that the rule correctly kept off the alert
+list.** That is a real and useful property. It is not "we caught a false
+positive."
 
 When a judge asks *"how do you know that's not just noise?"* — most teams have
-no answer. Ours is: **p=0.0001 versus p=0.221, and here's the one we deleted.**
+no answer. Ours is: **p=0.0001 versus p=0.221 — and the rejected one is still
+on screen, labelled, rather than quietly dropped.**
 
 > Be accurate about this: statistical testing is **routine** in professional
 > labour analytics. It is rare *in a hackathon*, not novel in the field. Pitch
@@ -204,15 +226,26 @@ Volunteering a weakness reads as confidence. Getting caught reads as sloppiness.
    **pluggable**. The identical comparison runs against an NSQF qualification
    pack. We demonstrate on the syllabus we could actually obtain and verify.
 
-5. **We don't know our extraction accuracy on real text yet.** We know it finds
+5. **A supported change in advertised wording is not evidence that changing a
+   course would improve employment.** Those are different claims. Our
+   instrument can test the first; it does not identify the second. An absent
+   syllabus keyword may be covered by a broader learning outcome, and a present
+   one may be taught badly. This is the strongest argument against us and we
+   state it before anyone else does.
+
+6. **We don't know our extraction accuracy on real text yet.** We know it finds
    5.4 skills per posting on real ads versus 11.8 on our synthetic ones — but
    that's a *proxy*, not a measured accuracy. 30 postings are sitting in
    `data/recall_review.md` waiting to be checked by hand. **This is our biggest
    open hole.**
 
-6. **Sample sizes are small.** Every percentage on screen carries its sample
-   size, and anything under 20 postings is flagged as low-confidence — because
-   at n=25 a number can swing 10 points on chance alone.
+7. **Sample sizes are small, and we can quantify how small.** Simulated power
+   to detect a 10-percentage-point shift is about **9% at n=25**, 44% at n=100,
+   77% at n=200. Our synthetic test data plants much larger shifts (LLM moves
+   45 points), which is why the detector finds them. The honest sentence is:
+   *"at this sample size we can detect a 40-point shift, not a 10-point one."*
+   Every percentage on screen carries its sample size, and anything under 20
+   postings is flagged.
 
 ---
 
