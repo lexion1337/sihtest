@@ -16,7 +16,9 @@ demands"*).
 
 BTech Computer Science student, Reva University, Bangalore. Six-member team.
 
-- **College internal hackathon: 10 September 2026.**
+- **SIH internal hackathon: 16 September 2026**, REVA Rangasthala, 8:30-16:30.
+- **Bar for internal: 30% of the project**, measured against the problem
+  statement's 15 required elements, not lines of code. Currently ~6 of 15.
 - If they win it, the national Grand Finale is a 36-hour build in December 2026.
 - They work in **short sessions with limited quota**. Every session must end
   with something that runs. Prefer finishing one vertical slice over starting
@@ -80,12 +82,16 @@ Chosen for zero setup friction. **Do not add build tooling.**
 - Python 3 (developed on 3.13)
 - FastAPI + uvicorn
 - SQLite (stdlib `sqlite3`)
-- Vanilla HTML + Chart.js via CDN
+- Vanilla HTML + **Chart.js VENDORED into `static/chart.umd.min.js`**
+  (do NOT move it back to a CDN: the venue Wi-Fi is shared by ~50 teams and
+  the dashboard must render with no internet at all)
 
 `python run.py` must start everything. **No npm, no bundler, no Docker, no
 migrations framework, no ORM.**
 
 Only external dependency: `fastapi` + `uvicorn`. Everything else is stdlib.
+There is no test suite; it was deliberately dropped the day before the
+hackathon as the wrong investment. Revisit before the Grand Finale.
 
 ## ARCHITECTURE
 
@@ -93,8 +99,9 @@ Pipeline, strictly one direction. Each stage is a plain module runnable on its
 own with `python <module>.py`.
 
 ```
-data/postings.jsonl        600 seed postings, every record source="synthetic"
-        |
+data/postings.jsonl        600 seed postings, source="synthetic"
+data/postings_real.jsonl   125 REAL postings, source="greenhouse"|"lever"
+        |                  pipeline loads EVERY data/postings*.jsonl
         v
 skills.py                  SKILL_DICT (~120 terms + aliases) -> regex/alias match
         |                  offline, no network, instant
@@ -119,6 +126,23 @@ app.py (FastAPI)  ->  static/index.html + Chart.js
 ```
 
 ### Key invariants
+
+- **`source` survives end to end** and nothing hardcodes "this corpus is
+  synthetic". `analysis.provenance()` classifies the loaded corpus as
+  empty / synthetic / mixed / real from its source counts, and the banner
+  renders that. The corpus is currently **mixed**: 725 = 600 synthetic + 125 real.
+- **THE DATE SPLIT.** Lever `createdAt` and Ashby `publishedAt` are true
+  creation dates. Greenhouse `updated_at` is LAST-MODIFIED and is degenerate
+  for time bins (all 64 Postman rows landed in one quarter). Records carry
+  `ts_eligible`; `analysis._quarter_totals()` filters on it; the UI states the
+  exclusion. **Never quietly bin a modified date by quarter.**
+- **Locations are normalised** by `locations.py` before any per-city share.
+  One city arrived as three spellings. Unrecognised input becomes `"Unknown"`,
+  never a guess.
+- **`scraper.py` and `ingest_ats.py` are different things.** `scraper.py` is
+  still a stub that raises (NCS/Naukri are dead ends, documented in
+  PROGRESS.md). `ingest_ats.py` is real, works, and is where new data comes
+  from -- add board tokens to `data/boards.json`.
 
 - **`share` denominator is postings in that (role, quarter) bucket** — not
   total postings, not skill mentions. Always carry `n` next to it.
@@ -151,7 +175,13 @@ UI legend must change with them.
 | `pipeline.py` | Rebuilds SQLite from postings.jsonl. Idempotent. |
 | `skills.py` | Skill dictionary + extraction. Offline. |
 | `analysis.py` | Quarterly drift + curriculum gap. Pure reads. |
-| `scraper.py` | **Stub.** Real scrape, later session. |
+| `scraper.py` | **Stub.** Raises by design. NCS/Naukri are dead ends. |
+| `ingest_ats.py` | **Real ingest.** Greenhouse/Lever/Ashby public APIs. |
+| `locations.py` | Location string normaliser. Offline dictionary. |
+| `data/boards.json` | Board tokens. Add boards HERE, not in code. |
+| `data/postings_real.jsonl` | 125 real postings. Committed (repo is private). |
+| `tools/recall_check.py` | Extraction stats + writes the recall review artifact. |
+| `static/chart.umd.min.js` | Vendored Chart.js. Do not replace with a CDN link. |
 | `app.py` | FastAPI routes + JSON API. |
 | `static/index.html` | Single-page dashboard. |
 | `tools/gen_seed.py` | Regenerates `data/postings.jsonl`. Deterministic (seeded). |
@@ -168,3 +198,9 @@ UI legend must change with them.
 - If time runs short, degrade the dashboard to a static HTML table. **Never
   skip the pipeline steps — the numbers are the product, the chart is
   packaging.**
+- **The biggest open hole is extraction recall on real text.**
+  `data/recall_review.md` holds 30 real postings awaiting hand markup. Until
+  someone marks them, the honest claim is "5.4 skills/posting on real text vs
+  11.8 on synthetic", which is a proxy, NOT recall. Do not tune `SKILL_DEFS`
+  to improve that number — a dictionary fitted to the sample stops measuring
+  the market and starts measuring itself.
