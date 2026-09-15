@@ -106,6 +106,38 @@ def two_proportion_p(c1, n1, c2, n2):
 # Significance threshold for calling a trend a finding rather than a wiggle.
 ALPHA = 0.05
 
+# Multiple-comparison correction. Every measured skill for a role is tested, so
+# at ALPHA=0.05 across ~40 skills roughly 2 false alerts are expected by chance
+# alone. Benjamini-Hochberg rather than Bonferroni because this list SCREENS
+# candidates for employer consultation: a false positive costs a wasted
+# meeting, not a catastrophe, so false-discovery rate is the appropriate error
+# rate rather than family-wise error.
+#
+# Recorded deliberately: BH assumes valid null p-values and independence (or
+# positive dependence). Skills co-occur within postings and the same employers
+# recur across periods, so neither condition is established here. This is an
+# improvement over raw p, not a warranty.
+CORRECTION_METHOD = "benjamini-hochberg"
+
+
+def benjamini_hochberg(pvals):
+    """Step-up BH adjusted p-values, returned in input order.
+
+    adj(i) = min over k >= i of min(1, m/k * p(k)) on the ascending sort,
+    which keeps the adjusted sequence monotone.
+    """
+    m = len(pvals)
+    if m == 0:
+        return []
+    order = sorted(range(m), key=lambda i: pvals[i])
+    adj = [0.0] * m
+    running = 1.0
+    for rank in range(m, 0, -1):
+        i = order[rank - 1]
+        running = min(running, min(1.0, pvals[i] * m / rank))
+        adj[i] = round(running, 4)
+    return adj
+
 # ------------------------------------------------------------- provenance
 
 # Sources that are generated rather than observed. Anything not listed here is
@@ -270,9 +302,25 @@ def drift(con, role):
             "low_confidence_latest": latest_n < LOW_CONFIDENCE_N,
         })
 
+    # Correct across every skill tested for this role. The family is ALL
+    # measured skills, not just the ones that later pass the gap filters.
+    adj = benjamini_hochberg([s["p_value"] for s in out])
+    for s, a in zip(out, adj):
+        s["p_adjusted"] = a
+        s["significant_adjusted"] = a < ALPHA
+        s["correction_family_size"] = len(out)
+        s["correction_method"] = CORRECTION_METHOD
+
     out.sort(key=lambda s: -s["latest_share"])
     return {
         "role": role,
+        "correction": {
+            "method": CORRECTION_METHOD,
+            "family_size": len(out),
+            "alpha": ALPHA,
+            "n_significant_raw": sum(1 for s in out if s["significant"]),
+            "n_significant_adjusted": sum(1 for s in out if s["significant_adjusted"]),
+        },
         "excluded_from_time_series": ts_exclusions(con, role),
         "quarters": [{"quarter": q, "n": n, "low_confidence": n < LOW_CONFIDENCE_N}
                      for q, n in totals],
@@ -380,15 +428,22 @@ def obsolete_courses(con, role, curriculum=None, drift_result=None):
     d = drift_result or drift(con, role)
     taught = set(cur["taught_skills"])
     measured = {s["skill"]: s for s in d["skills"]}
+    observed_n = sum(q["n"] for q in d["quarters"])
+    observed_quarters = [q["quarter"] for q in d["quarters"]]
 
     obsolete, declining, never_seen = [], [], []
     for skill in sorted(taught):
         m = measured.get(skill)
         if m is None:
             # Taught, and not one posting for this role mentioned it.
+            # "Never seen" is a claim about the WHOLE observation window, so it
+            # must carry that window's denominator. Reporting latest_n here
+            # understated the evidence by roughly 8x.
             never_seen.append({"skill": skill,
                                "category": skills_mod.skill_category(skill),
-                               "latest_share": 0.0, "latest_count": 0,
+                               "observed_count": 0,
+                               "observed_n": observed_n,
+                               "observed_quarters": observed_quarters,
                                "latest_n": d["latest_n"], "taught": True,
                                "subjects": _subjects_teaching(cur, skill)})
             continue
@@ -425,6 +480,12 @@ def obsolete_courses(con, role, curriculum=None, drift_result=None):
         "obsolete": obsolete,
         "declining": declining,
         "never_seen": never_seen,
+        "observation_window": {
+            "n": observed_n,
+            "quarters": observed_quarters,
+            "first": observed_quarters[0] if observed_quarters else None,
+            "last": observed_quarters[-1] if observed_quarters else None,
+        },
         "n_taught": len(taught),
     }
 
@@ -461,6 +522,9 @@ def curriculum_gap(con, role, curriculum=None, drift_result=None):
             "trend": s["trend"],
             "p_value": s["p_value"],
             "significant": s["significant"],
+            "p_adjusted": s["p_adjusted"],
+            "significant_adjusted": s["significant_adjusted"],
+            "correction_family_size": s["correction_family_size"],
             "first_seen": s["first_seen"],
             "taught": s["skill"] in taught,
             "low_confidence": s["low_confidence_latest"],
@@ -492,6 +556,8 @@ def curriculum_gap(con, role, curriculum=None, drift_result=None):
         "gaps": gaps,
         "n_gaps": len(gaps),
         "n_gaps_significant": sum(1 for r in gaps if r["significant"]),
+        "n_gaps_significant_adjusted": sum(1 for r in gaps if r["significant_adjusted"]),
+        "correction": d.get("correction"),
         "covered": covered,
         "curriculum": {
             "name": cur["name"],

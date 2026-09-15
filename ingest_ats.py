@@ -141,7 +141,12 @@ ROLE_RULES = [
     ("Backend Developer", [
         r"\bback[ -]?end\b", r"\bserver[ -]side\b", r"\bplatform engineer\b",
         r"\bsde\b", r"\bsoftware development engineer\b",
-        r"\b(java|python|golang|node)\s+(developer|engineer)\b",
+        # Deliberately NOT matching language names (java/python/golang/node).
+        # Those are also skills we later MEASURE, so using them to assign a
+        # role would let a change in that skill's prevalence move both the
+        # numerator and who enters the denominator. Verified to fire zero
+        # times on the current corpus: removing it costs nothing today and
+        # prevents the circularity as more boards are added.
         r"\bapi engineer\b", r"\binfrastructure engineer\b",
         r"\bsoftware engineer\b",
     ], [r"\bfront[ -]?end\b", r"\bmobile\b", r"\bandroid\b", r"\bios\b",
