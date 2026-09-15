@@ -129,7 +129,23 @@ bytes. The dashboard now loads **zero external hosts** — verified by the
 browser network log showing 5 requests, all to 127.0.0.1. Venue Wi-Fi shared by
 ~50 teams cannot break the chart.
 
-**9. Scraper — stub only, as specified.** `scraper.py` fixes the `fetch(role,
+**9. DEMAND BY LOCATION — done, session 3.** `locations.py` normalises the raw
+location strings (one city appeared as `Bangalore, Karnataka`, `bengaluru` and
+`Bengaluru, Karnataka, India`). `postings` gains city/state/country;
+`analysis.demand_by_location()` reports which skills are demanded where, with
+posting counts and an n<20 flag per city. State is tracked because the customer
+is the Government of Maharashtra. Measured: **Pune 67, Mumbai 62, Nagpur 27**
+in Maharashtra; Bengaluru 115. Unrecognised locations become "Unknown" (5 rows,
+all genuinely foreign cities) rather than a guess. `/api/locations`.
+
+**10. OBSOLETE / OVERSUPPLIED COURSES — done, session 3.** The gap table
+reversed: `analysis.obsolete_courses()` finds skills the curriculum teaches
+that demand does not ask for, split into obsolete / declining / never-seen, each
+naming the subject codes that teach it so a recommendation points at a course
+rather than a word. `/api/obsolete`. The UI carries an explicit caveat that
+absence from job adverts is not proof a subject is worthless.
+
+**11. Scraper — stub only, as specified.** `scraper.py` fixes the `fetch(role,
 pages) -> list[dict]` interface and raises `NotImplementedError`. It also ships
 a `validate()` helper that rejects any record claiming `source="synthetic"`,
 so the real collector cannot accidentally launder fake rows into the corpus.
@@ -447,12 +463,21 @@ construction, because the generator and extractor share `skills.py`.
 
 ## THE SINGLE NEXT TASK
 
-**It is the day before the hackathon. Stop building infrastructure.**
+**Both of the cheap PS outputs are now BUILT (see items 9 and 10 above), so
+coverage is roughly 6 of 15 — comfortably over the 30% bar.**
 
-The bar is 30% of the problem statement's 15 elements. We cover roughly 4:
-demand by role, demand by skill, real job-posting signals, and drift as an
-emerging-technology proxy. Two more are cheap and both are named explicitly in
-the PS:
+What remains is not engineering. In priority order for the morning:
+
+1. **Rehearse the demo sequence out loud, twice.** Section 12 of
+   PROJECT_CONTEXT has the running order. Lead with the three-second image,
+   not the dashboard.
+2. **Mark up 10 of the 30 postings in `data/recall_review.md`.** A real recall
+   number is the answer to the second-hardest judge question and is the single
+   biggest hole left.
+3. **Know the coverage-skew numbers cold** — only 18 of 125 real postings are
+   in a measured role. Say it before a judge finds it.
+
+Superseded (kept for the record, both now done):
 
 1. **Demand by LOCATION.** The data is already ingested and currently
    discarded. 31 distinct location strings across the real corpus, **66
