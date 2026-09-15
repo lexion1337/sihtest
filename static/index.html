@@ -10,25 +10,41 @@
 <style>
   /* Light palette, chosen for projector legibility rather than taste. A
      near-black UI loses panel separation in a bright room on a weak beamer. */
+  /* Warm brown-on-cream. Chosen for a projector: a warm ground holds
+     contrast in a bright room better than cool grey, and the accent stays
+     dark enough to read from the back of the hall. */
   :root{
-    --page:#F3F5F7; --panel:#FFFFFF; --ink:#111827; --ink2:#374151;
-    --rule:#CBD5E1; --action:#174EA6; --warnbg:#FFF3CD; --warnink:#713F12;
-    --neutral:#6B7280; --neutralbg:#F1F3F5;
+    --page:#F7F3EC; --panel:#FFFDFA; --ink:#2B2118; --ink2:#5F4B39;
+    --rule:#E0D3C2; --rule2:#CDBBA4;
+    --action:#7C4A21; --action2:#9A6234; --actionbg:#F4E9DD;
+    --warnbg:#FBEFD2; --warnink:#6B4708;
+    --neutral:#8A7663; --neutralbg:#F2EBE1;
+    --good:#3F6B4A; --goodbg:#E8F0E6;
+    --c1:#7C4A21; --c2:#9A6234; --c3:#B98A5B; --c4:#5F4B39;
+    --c5:#3F6B4A; --c6:#8A6A8A; --c7:#A5553C;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{background:var(--page);color:var(--ink);line-height:1.4;
-       font:20px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       font-variant-numeric:tabular-nums}
+  /* No webfonts: the page must render with the network off, so this uses
+     system faces only. A serif for headings and a sans for body gives real
+     typographic contrast at zero network cost. */
+  body{background:var(--page);color:var(--ink);line-height:1.5;
+       font:20px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+            "Helvetica Neue",Arial,sans-serif;
+       font-variant-numeric:tabular-nums;
+       -webkit-font-smoothing:antialiased}
+  .serif,h1,h2,h3,.seclabel,.heroSkill,.big{
+       font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,
+                   "Times New Roman",serif}
   .wrap{max-width:1240px;margin:0 auto;padding:0 32px 64px}
-  h1,h2,h3{margin:0;font-weight:600}
-  h1{font-size:26px}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+  h1{font-size:30px;line-height:1.15}
   a{color:var(--action)}
   button{font:inherit}
 
   /* ---------- persistent provenance banner: never dismissible ---------- */
   #banner{background:var(--warnbg);color:var(--warnink);padding:8px 32px;
-          font-size:16px;line-height:1.3;border-bottom:1px solid #E5C77A}
+          font-size:16px;line-height:1.3;border-bottom:2px solid #E3C78A}
   #banner .inner{max-width:1240px;margin:0 auto;display:flex;gap:24px;
                  align-items:flex-start;justify-content:space-between}
   #banner .l1{font-weight:600}
@@ -50,35 +66,41 @@
   nav{display:flex;gap:6px;border-bottom:1px solid var(--rule);margin-bottom:14px}
   nav button{background:none;border:0;border-bottom:3px solid transparent;
              padding:8px 13px;font-size:17px;color:var(--ink2);cursor:pointer}
-  nav button.on{color:var(--action);border-bottom-color:var(--action);font-weight:600}
+  nav button.on{color:var(--action);border-bottom-color:var(--action);font-weight:700}
+  nav button:hover{color:var(--action)}
 
   .panel{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
          padding:14px 20px;margin-bottom:8px}
-  .seclabel{font-size:24px;font-weight:600;margin:0 0 8px}
+  .seclabel{font-size:25px;font-weight:600;margin:0 0 10px;padding-bottom:8px;
+            border-bottom:2px solid var(--rule2);letter-spacing:-.01em}
+  .seclabel::before{content:"";display:inline-block;width:5px;height:20px;
+            background:var(--action);margin-right:12px;vertical-align:-3px;
+            border-radius:2px}
   .note{color:var(--ink2);font-size:18px;margin:0 0 16px}
   .tiny{font-size:16px;color:var(--ink2)}
 
   /* ---------------------------- the hero ---------------------------- */
   #hero{min-height:0;display:flex;flex-direction:column;justify-content:space-between}
-  .kicker{font-size:16px;letter-spacing:.09em;font-weight:600;color:var(--ink2);
+  .kicker{font-size:15px;letter-spacing:.13em;font-weight:700;color:var(--action);
           text-transform:uppercase}
   .heroTop{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin:4px 0 10px}
-  .heroSkill{font-size:40px;font-weight:600;line-height:1.1}
+  .heroSkill{font-size:44px;font-weight:600;line-height:1.05;letter-spacing:-.02em}
   .prov{font-size:16px;padding:5px 12px;border-radius:8px;border:1px solid var(--rule);
         color:var(--ink2);background:var(--neutralbg);white-space:nowrap}
   .prov.synthetic{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
   .prov.mixed{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
-  .prov.real{background:#EAF4EC;color:#14532D;border-color:#BBD9C4}
+  .prov.real{background:var(--goodbg);color:var(--good);border-color:#BBD0BB}
   .cols{display:flex;gap:28px;align-items:stretch}
   .col{flex:1;min-width:0}
   .col.right{border-left:1px solid var(--rule);padding-left:28px}
   .colhead{font-size:15px;color:var(--ink2);margin-bottom:4px}
   .big{font-size:64px;font-weight:600;line-height:1;display:inline-block;
-       vertical-align:baseline}
+       vertical-align:baseline;letter-spacing:-.025em;color:var(--action)}
   .beside{font-size:24px;color:var(--ink2);margin-left:14px}
   .under{font-size:16px;color:var(--ink2);margin-top:4px}
-  .actionband{background:#EEF3FB;border:1px solid #D4E0F2;border-radius:8px;
-              padding:10px 14px;margin-top:12px}
+  .actionband{background:var(--actionbg);border:1px solid var(--rule2);
+              border-left:5px solid var(--action);border-radius:8px;
+              padding:12px 16px;margin-top:12px}
   .actionband .do{font-size:18px}
   .actionband .bound{font-size:14px;color:var(--ink2);margin-top:4px}
   .btnrow{margin-top:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
@@ -96,12 +118,13 @@
 
   /* ------------------------------ tables ------------------------------ */
   table{width:100%;border-collapse:collapse;font-size:18px}
-  th{text-align:left;font-size:16px;color:var(--ink2);font-weight:600;
-     padding:12px 12px;border-bottom:2px solid var(--rule);white-space:nowrap}
+  th{text-align:left;font-size:15px;color:var(--ink2);font-weight:700;
+     padding:12px 12px;border-bottom:2px solid var(--rule2);white-space:nowrap;
+     letter-spacing:.04em;text-transform:uppercase}
   td{padding:14px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
   tbody tr{min-height:52px}
   tbody tr.click{cursor:pointer}
-  tbody tr.click:hover{background:#F7F9FC}
+  tbody tr.click:hover{background:var(--actionbg)}
   .num{text-align:right;white-space:nowrap}
   .skillname{font-weight:600}
   .sub2{font-size:16px;color:var(--ink2);margin-top:3px}
@@ -109,13 +132,33 @@
         background:var(--warnbg);color:var(--warnink);white-space:nowrap}
   .dec{display:inline-block;font-size:16px;padding:4px 12px;border-radius:8px;
        border:1px solid var(--rule);background:var(--neutralbg);color:var(--ink2)}
-  .dec.sup{background:#EEF3FB;border-color:#D4E0F2;color:var(--action);font-weight:600}
+  .dec.sup{background:var(--actionbg);border-color:var(--rule2);color:var(--action);
+           font-weight:700}
 
   /* ------------------------------ chart ------------------------------ */
   #histWrap{display:none}
   .chartbox{position:relative;height:240px}
   #nrow{display:flex;font-size:16px;color:var(--ink2);margin-top:6px}
   #nrow span{flex:1;text-align:center}
+
+  /* --------------------------- statistics --------------------------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
+        gap:16px}
+  .cardchart{background:var(--panel);border:1px solid var(--rule);
+             border-radius:8px;padding:18px 20px}
+  .cardchart h3{font-size:20px;margin-bottom:4px}
+  .cardchart .cap{font-size:15px;color:var(--ink2);margin:0 0 12px}
+  .cardchart .box{position:relative;height:250px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+        gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+       padding:16px 18px;border-top:4px solid var(--action)}
+  .kpi .k{font-size:14px;letter-spacing:.07em;text-transform:uppercase;
+          color:var(--ink2);font-weight:700}
+  .kpi .v{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px;
+          color:var(--action);
+          font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .kpi .n{font-size:15px;color:var(--ink2);margin-top:4px}
 
   /* ------------------------------ drawer ------------------------------ */
   #drawer{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;z-index:100}
@@ -128,14 +171,14 @@
   .filters{display:flex;gap:10px;margin:18px 0}
   .filters button{border:1px solid var(--rule);background:var(--panel);border-radius:8px;
                   padding:10px 16px;font-size:16px;cursor:pointer;color:var(--ink2)}
-  .filters button.on{border-color:var(--action);color:var(--action);font-weight:600;
-                     background:#EEF3FB}
+  .filters button.on{border-color:var(--action);color:var(--action);font-weight:700;
+                     background:var(--actionbg)}
   .rec{border:1px solid var(--rule);border-radius:8px;padding:16px;margin-bottom:12px}
   .rec .t{font-weight:600;font-size:18px}
   .rec .m{font-size:16px;color:var(--ink2);margin-top:4px}
   .rec mark{background:#FFF3CD;padding:1px 3px}
   .rec pre{white-space:pre-wrap;font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-           background:#F7F9FC;border:1px solid var(--rule);border-radius:8px;
+           background:var(--neutralbg);border:1px solid var(--rule);border-radius:8px;
            padding:12px;margin-top:10px;max-height:320px;overflow:auto}
   .synthtag{display:inline-block;font-size:14px;letter-spacing:.06em;font-weight:600;
             background:var(--warnbg);color:var(--warnink);padding:3px 9px;border-radius:8px}
@@ -176,6 +219,7 @@
     <button data-v="findings" class="on">Review findings</button>
     <button data-v="location">Location evidence</button>
     <button data-v="syllabus">Syllabus coverage</button>
+    <button data-v="stats">Statistics</button>
     <button data-v="terms">Unmapped terms</button>
     <button data-v="methods">Methods &amp; data</button>
   </nav>
@@ -244,6 +288,30 @@
     </div>
   </section>
 
+  <!-- ============================ STATISTICS ============================ -->
+  <section id="v-stats" hidden>
+    <div class="panel">
+      <div class="seclabel">Corpus statistics</div>
+      <p class="note" id="statsNote"></p>
+      <div class="note" id="statsWarn"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid">
+        <div class="cardchart"><h3>Where the corpus comes from</h3>
+          <p class="cap" id="capSrc"></p><div class="box"><canvas id="chSrc"></canvas></div></div>
+        <div class="cardchart"><h3>Postings per quarter</h3>
+          <p class="cap" id="capQ"></p><div class="box"><canvas id="chQ"></canvas></div></div>
+        <div class="cardchart"><h3>Most-requested competencies</h3>
+          <p class="cap" id="capTop"></p><div class="box"><canvas id="chTop"></canvas></div></div>
+        <div class="cardchart"><h3>Decision outcomes</h3>
+          <p class="cap" id="capDec"></p><div class="box"><canvas id="chDec"></canvas></div></div>
+        <div class="cardchart"><h3>Collection funnel</h3>
+          <p class="cap" id="capYield"></p><div class="box"><canvas id="chYield"></canvas></div></div>
+        <div class="cardchart"><h3>Indian cities by posting count</h3>
+          <p class="cap" id="capCity"></p><div class="box"><canvas id="chCity"></canvas></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- =========================== UNMAPPED TERMS =========================== -->
   <section id="v-terms" hidden>
     <div class="panel">
@@ -289,6 +357,7 @@ const pp  = v => (v >= 0 ? "+" : "") + v.toFixed(1) + " pp";
 let OV = null, F = null, FEAT = null, LOC = null, SYL = null, SENS = null,
     TERMS = null, chart = null;
 let supAll = false, disAll = false, seq = 0;
+let STATS_DIRTY = true;
 
 async function get(url){
   // no-store: the database is rebuilt between runs, so a cached response can
@@ -349,9 +418,23 @@ async function boot(){
 function go(v){
   document.querySelectorAll("nav button").forEach(b =>
     b.classList.toggle("on", b.dataset.v === v));
-  ["findings","location","syllabus","terms","methods"].forEach(k =>
+  ["findings","location","syllabus","stats","terms","methods"].forEach(k =>
     $("#v-" + k).hidden = (k !== v));
   window.scrollTo(0,0);
+  // Charts must NOT be drawn into a hidden section: Chart.js sizes a canvas
+  // from its layout box, a hidden box has none, and the 0x0 inline width it
+  // then writes survives a later resize(). So draw on first show instead.
+  if(v === "stats" && STATS_DIRTY){
+    STATS_DIRTY = false;
+    // setTimeout, not requestAnimationFrame: rAF is tied to the compositor and
+    // does not fire in a pane that is not actively painting, which silently
+    // left every chart undrawn. A timer runs regardless; reading a layout
+    // property first forces the box to be measured before Chart.js sizes to it.
+    setTimeout(() => {
+      void document.querySelector("#v-stats").offsetHeight;
+      drawStats().catch(e => console.error("drawStats failed:", e));
+    }, 0);
+  }
 }
 
 /* --------------------------------------------------------------- load */
@@ -373,6 +456,10 @@ async function load(){
     $("#histWrap").style.display = "none";
     drawHero(); drawDiscarded(); drawLists(); drawSensitivity();
     drawLocation(); drawSyllabus(); drawMethods(); loadTerms(); loadYield();
+    // The corpus or role changed, so the charts are stale. Redraw now only if
+    // the section is on screen; otherwise defer to the next time it is shown.
+    STATS_DIRTY = true;
+    if(!$("#v-stats").hidden){ STATS_DIRTY = false; drawStats(); }
   }catch(e){ fail(e.message); }
 }
 
@@ -762,6 +849,181 @@ function drawMethods(){
   $("#methods").innerHTML = rows.concat(yieldRow).map(([t,fact,body]) =>
     `<details class="m"><summary><b>${esc(t)}</b> — ${esc(fact)}</summary>
       <div class="body">${body}</div></details>`).join("");
+}
+
+/* ----------------------------------------------------------- statistics */
+/* Every chart here carries its sample size and never blurs real with
+   generated records. A picture is easier to mislead with than a table, so the
+   captions do the work the numbers cannot. */
+const CH = {};
+function chart_(id, cfg){
+  if(CH[id]) CH[id].destroy();
+  const el = document.querySelector("#" + id);
+  if(!el) return;
+  // A previous render into a hidden box can leave width/height at 0px inline.
+  el.removeAttribute("width"); el.removeAttribute("height");
+  el.style.width = ""; el.style.height = "";
+  CH[id] = new Chart(el, cfg);
+}
+const BROWN = ["#7C4A21","#9A6234","#B98A5B","#5F4B39","#3F6B4A","#8A6A8A","#A5553C"];
+const AXIS = {ticks:{color:"#5F4B39",font:{size:13}}, grid:{color:"#E8DFD2"}};
+const NOLEG = {legend:{display:false}};
+
+async function drawStats(){
+  if(!OV || !F) return;
+  let D = null;
+  try{ D = await get(`/api/drift?role=${encodeURIComponent(F.role)}&top=1`); }catch(e){}
+
+  const real = OV.n_real, synth = OV.n_synthetic, tot = OV.n_postings;
+  $("#statsNote").textContent =
+    `Everything below is computed from the ${tot} records currently in the database `
+    + `and recomputes when the corpus changes. Counts appear beside every percentage.`;
+  $("#statsWarn").innerHTML =
+    `<b>Read the split first.</b> ${synth} of ${tot} records are generated test data and `
+    + `${real} are real postings from public job-board APIs. Charts that mix them describe `
+    + `the CORPUS, not the Indian labour market. Where a chart is role-specific it uses `
+    + `${esc(F.role)}.`;
+
+  /* ---------------- KPI strip ---------------- */
+  const yieldPct = YIELD ? YIELD.real_total.yield_pct : null;
+  const kpis = [
+    ["Postings in corpus", tot, `${real} real + ${synth} generated`],
+    ["Real postings", real, `from ${Object.keys(OV.sources).filter(k=>k!=="synthetic").length} job-board sources`],
+    ["Competency terms", OV.skill_dict_size, "closed dictionary; anything outside is unmeasured"],
+    ["Excluded from trends", OV.n_ts_excluded, "modification date only, no creation date"],
+    ["Supported findings", F.n_supported, `after ${esc(F.criteria.correction)} correction`],
+    ["Discarded findings", F.n_discarded, "shown, not hidden"],
+  ];
+  $("#kpis").innerHTML = kpis.map(([k,v,n]) =>
+    `<div class="kpi"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>
+     <div class="n">${esc(n)}</div></div>`).join("");
+
+  /* ---------------- 1. sources ---------------- */
+  const srcE = Object.entries(OV.sources).sort((a,b)=>b[1]-a[1]);
+  $("#capSrc").textContent =
+    `${tot} records. Generated records exist to exercise the pipeline against a known `
+    + `drift curve; they are never presented as observed demand.`;
+  chart_("chSrc", {
+    type:"doughnut",
+    data:{ labels: srcE.map(([k,v]) => `${k} (${v})`),
+           datasets:[{ data: srcE.map(([,v])=>v),
+                       backgroundColor: srcE.map(([k],i) =>
+                         k === "synthetic" ? "#C9B79C" : BROWN[i % BROWN.length]),
+                       borderColor:"#FFFDFA", borderWidth:2 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"52%",
+      plugins:{ legend:{position:"right", labels:{color:"#2B2118", font:{size:14}, boxWidth:14}},
+        tooltip:{ callbacks:{ label: it =>
+          ` ${it.label}: ${(100*it.parsed/tot).toFixed(1)}% of ${tot}` }}}}
+  });
+
+  /* ---------------- 2. postings per quarter ---------------- */
+  if(D && D.quarters && D.quarters.length){
+    const thin = D.quarters.filter(q=>q.low_confidence).length;
+    $("#capQ").textContent =
+      `${esc(F.role)} postings per quarter. ${thin} of ${D.quarters.length} quarters hold `
+      + `fewer than ${D.thresholds.low_confidence_n} postings and are drawn pale — those `
+      + `cannot support a percentage on their own. Excludes `
+      + `${D.excluded_from_time_series.n_excluded} records with no creation date.`;
+    chart_("chQ", {
+      type:"bar",
+      data:{ labels: D.quarters.map(q=>q.quarter),
+             datasets:[{ data: D.quarters.map(q=>q.n),
+                         backgroundColor: D.quarters.map(q=>q.low_confidence ? "#DCC9AE" : "#7C4A21"),
+                         borderRadius:3 }]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{...NOLEG,
+        tooltip:{ callbacks:{ label: it => {
+          const q = D.quarters[it.dataIndex];
+          return ` ${q.n} postings` + (q.low_confidence ? "  (below threshold)" : ""); }}}},
+        scales:{ y:{beginAtZero:true, title:{display:true, text:"postings", color:"#5F4B39"}, ...AXIS},
+                 x:{...AXIS, grid:{display:false}} }}
+    });
+  } else { $("#capQ").textContent = "No quarterly series for this role."; }
+
+  /* ---------------- 3. most-requested competencies ---------------- */
+  const top = F.supported.concat(F.discarded)
+    .sort((a,b)=>b.latest_share-a.latest_share).slice(0,10);
+  $("#capTop").textContent =
+    `Share of the ${F.latest_n} ${esc(F.role)} postings in ${esc(F.latest_quarter)} that `
+    + `mention each competency. Bars in solid brown passed the decision rule; pale bars `
+    + `are observed but their CHANGE was not supported.`;
+  chart_("chTop", {
+    type:"bar",
+    data:{ labels: top.map(r=>r.skill),
+           datasets:[{ data: top.map(r=>r.latest_share),
+                       backgroundColor: top.map(r=>r.decision==="supported" ? "#7C4A21" : "#D7C3A8"),
+                       borderRadius:3 }]},
+    options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+      plugins:{...NOLEG, tooltip:{ callbacks:{ label: it => {
+        const r = top[it.dataIndex];
+        return ` ${r.latest_share.toFixed(1)}% — ${r.latest_count} of ${r.latest_n} postings`; }}}},
+      scales:{ x:{beginAtZero:true, max:100, ticks:{callback:v=>v+"%", color:"#5F4B39"},
+                  grid:{color:"#E8DFD2"}},
+               y:{...AXIS, grid:{display:false}} }}
+  });
+
+  /* ---------------- 4. decision outcomes ---------------- */
+  const c = F.correction || {};
+  $("#capDec").textContent =
+    `Of ${c.family_size || "?"} competencies tested for ${esc(F.role)}, how many survive each `
+    + `stage. Correction matters: it is the difference between ${c.n_significant_raw} and `
+    + `${c.n_significant_adjusted}.`;
+  chart_("chDec", {
+    type:"bar",
+    data:{ labels:["Tested","Raw p<.05","After BH","Reported as supported"],
+           datasets:[{ data:[c.family_size||0, c.n_significant_raw||0,
+                             c.n_significant_adjusted||0, F.n_supported],
+                       backgroundColor:["#5F4B39","#B98A5B","#9A6234","#7C4A21"],
+                       borderRadius:3 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{...NOLEG,
+      tooltip:{ callbacks:{ label: it => ` ${it.parsed.y} competencies` }}},
+      scales:{ y:{beginAtZero:true, title:{display:true, text:"competencies", color:"#5F4B39"}, ...AXIS},
+               x:{...AXIS, grid:{display:false}} }}
+  });
+
+  /* ---------------- 5. collection funnel ---------------- */
+  if(YIELD){
+    const t = YIELD.real_total;
+    $("#capYield").textContent =
+      `Real postings only. ${t.collected} collected, ${t.historically_eligible} can enter the `
+      + `quarterly analysis today (${t.yield_pct}%). More boards raises the first bar; only `
+      + `target-relevant, properly dated postings raise the last. Accessibility to trainees: `
+      + `${esc(t.accessibility_status)}.`;
+    chart_("chYield", {
+      type:"bar",
+      data:{ labels:["Collected","Unique","In a measured role","Has creation date","Historically eligible"],
+             datasets:[{ data:[t.collected, t.unique, t.in_measured_role,
+                               t.date_eligible, t.historically_eligible],
+                         backgroundColor:["#B98A5B","#B98A5B","#9A6234","#9A6234","#7C4A21"],
+                         borderRadius:3 }]},
+      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+        plugins:{...NOLEG, tooltip:{ callbacks:{ label: it =>
+          ` ${it.parsed.x} of ${t.collected} real postings` }}},
+        scales:{ x:{beginAtZero:true, ...AXIS}, y:{...AXIS, grid:{display:false}} }}
+    });
+  }
+
+  /* ---------------- 6. cities ---------------- */
+  if(LOC && LOC.cities && LOC.cities.length){
+    const cities = LOC.cities.slice(0,10);
+    const mh = new Set((LOC.maharashtra||[]).map(x=>x.city));
+    $("#capCity").textContent =
+      `Advertised workplace locations for ${LOC.n_postings} ${esc(F.role)} postings across `
+      + `${LOC.n_cities} Indian cities. Maharashtra cities are darker. Cities under `
+      + `n=${LOC.min_n} cannot support a per-city percentage. An advertised location does not `
+      + `establish which district's trainees can reach the job.`;
+    chart_("chCity", {
+      type:"bar",
+      data:{ labels: cities.map(c=>c.city + (c.low_confidence ? "  (low n)" : "")),
+             datasets:[{ data: cities.map(c=>c.n),
+                         backgroundColor: cities.map(c=>mh.has(c.city) ? "#7C4A21" : "#C9AE8C"),
+                         borderRadius:3 }]},
+      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
+        plugins:{...NOLEG, tooltip:{ callbacks:{ label: it => {
+          const cc = cities[it.dataIndex];
+          return ` ${cc.n} postings` + (cc.state ? ` — ${cc.state}` : ""); }}}},
+        scales:{ x:{beginAtZero:true, ...AXIS}, y:{...AXIS, grid:{display:false}} }}
+    });
+  }
 }
 
 /* --------------------------------------------------------------- drawer */
