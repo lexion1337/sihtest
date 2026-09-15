@@ -3,24 +3,33 @@
 **Update this file at the end of every session.** Read `CLAUDE.md` first — it
 holds the problem statement, the honesty rules, and the architecture.
 
-Last updated: **2026-09-06** (session 2)
-Deadline: college internal hackathon **10 September 2026**.
+Last updated: **2026-09-15** (session 3)
+Deadline: **SIH internal hackathon, 16 September 2026 — TOMORROW.**
+Venue: REVA Rangasthala / Amphi Theatre, 8:30 AM - 4:30 PM.
+Bar for internal: **30% of the project ready**, measured against the problem
+statement's 15 required elements, not against lines of code.
 
 ---
 
 ## TL;DR
 
-The whole pipeline runs end to end. `python run.py` starts the dashboard on
-http://127.0.0.1:8000 and every number on screen is computed from records in
-`data/skills.db`. **All 600 postings are still synthetic seed data** and the UI
-says so in a banner that cannot be missed.
+`python run.py` serves the dashboard on http://127.0.0.1:8000. It works.
 
-**Session 2 obtained ZERO real postings.** Both the live-scrape route (NCS) and
-the historical-archive route (Wayback + Naukri) were investigated properly and
-both are blocked, for documented reasons recorded below. Nothing was scraped,
-nothing was ingested, and no synthetic record was relabelled to paper over the
-gap. The single most useful thing found is a real, MIT-licensed, date-stamped
-corpus of 141,897 job descriptions — but it is Ukrainian, not Indian.
+**The corpus is now MIXED: 725 postings = 600 synthetic + 125 REAL.** The real
+ones come from public ATS job-board APIs (Greenhouse, Lever), ingested by
+`ingest_ats.py` on 9 September. The provenance banner reads "MIXED DATA" and is
+computed from the source counts of what was actually loaded, not a hardcoded
+flag, so it cannot lie about this.
+
+Session 2's conclusion that no real data was obtainable was **overturned in
+session 3** by a route session 2 never tried: company ATS boards rather than
+job portals. NCS and Naukri are still dead ends and still documented below.
+
+**The one number that matters and that we still do not have: extraction recall
+on real text.** `data/recall_review.md` holds 30 real postings ready to be
+marked up by hand. Nobody has marked them. Until someone does, the honest
+answer to "how do you know extraction works on real text" is a measured proxy,
+not recall.
 
 ---
 
@@ -48,7 +57,7 @@ Useful extras:
 
 ---
 
-## WHAT RUNS (all verified this session)
+## WHAT RUNS (verified 2026-09-15)
 
 **1. Seed data — done.** `data/postings.jsonl`, 600 postings, 200 each for Data
 Analyst / Backend Developer / Business Analyst, spread 2024-01-06 → 2026-09-30.
@@ -86,7 +95,41 @@ quarterly chart, the gap table, and a second table of skills that are demanded
 quarters are drawn as **dashed** segments with an explicit note listing every
 quarter's sample size.
 
-**6. Scraper — stub only, as specified.** `scraper.py` fixes the `fetch(role,
+**6. REAL DATA INGEST — done, session 3.** `ingest_ats.py` reads the
+documented, unauthenticated job-board APIs that companies publish so their
+careers pages can be embedded elsewhere:
+
+    Greenhouse  boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true
+    Lever       api.lever.co/v0/postings/{token}?mode=json
+    Ashby       api.ashbyhq.com/posting-api/job-board/{token}   (adapter ready, untested)
+
+Boards live in `data/boards.json`, so going from 3 boards to 40+ is a config
+edit, not a code change. A failing board is logged and skipped, never fatal.
+Requests are sequential with a 1.5 s delay.
+
+**THE DATE SPLIT.** Lever `createdAt` and Ashby `publishedAt` are true creation
+timestamps. Greenhouse `updated_at` is LAST-MODIFIED. Measured: all 64 Postman
+postings carry an `updated_at` inside a single quarter, so the field is not
+merely noisy, it is **degenerate** for time bins. Every record therefore
+carries `date_kind` and `time_series_eligible`; the DB carries `ts_eligible` on
+both tables; `analysis._quarter_totals()` and the skill-count query filter on
+it; and the chart renders a note naming the excluded rows and why. Excluded
+postings still feed skill extraction and the tables — only the quarterly view
+drops them.
+
+**7. MULTI-SOURCE LOADER — done, session 3.** `pipeline.build()` and
+`read_postings()` accept `None` (discover every `data/postings*.jsonl`), a
+single path, or a list. Duplicate ids across corpora are rejected by name
+rather than silently deduped. `analysis.provenance()` classifies a corpus as
+empty / synthetic / mixed / real from its source counts, and the banner keys
+off that.
+
+**8. Chart.js VENDORED — done, session 3.** `static/chart.umd.min.js`, 200,807
+bytes. The dashboard now loads **zero external hosts** — verified by the
+browser network log showing 5 requests, all to 127.0.0.1. Venue Wi-Fi shared by
+~50 teams cannot break the chart.
+
+**9. Scraper — stub only, as specified.** `scraper.py` fixes the `fetch(role,
 pages) -> list[dict]` interface and raises `NotImplementedError`. It also ships
 a `validate()` helper that rejects any record claiming `source="synthetic"`,
 so the real collector cannot accidentally launder fake rows into the corpus.
@@ -104,7 +147,59 @@ so the real collector cannot accidentally launder fake rows into the corpus.
 
 ## VERIFIED NUMBERS (reproduce with `python analysis.py`)
 
-Corpus: 600 postings, 7061 skill mentions, 11.8 per posting, all synthetic.
+### Real corpus, ingested 2026-09-09 (`python ingest_ats.py`)
+
+| Board | ATS | Jobs | Date field | Time-series eligible |
+|---|---|---|---|---|
+| Postman | Greenhouse | 64 | `updated_at` (modified) | **No — all 64 excluded** |
+| Meesho | Lever | 50 | `createdAt` (created) | Yes |
+| CRED | Lever | 11 | `createdAt` (created) | Yes |
+
+125 real postings. Counts drift daily as boards change, so every record carries
+`fetched_at`.
+
+**Role classification** (conservative title rules; anything uncertain becomes
+`Other (unclassified)` rather than being forced into a bucket, because a wrong
+role label corrupts every share for that role):
+
+- Backend Developer **17**, Data Analyst **1**, Other (unclassified) **107**
+
+These boards are overwhelmingly Account Executives, Solutions Engineers,
+Customer Success, Marketing and Finance. That is the coverage skew this file
+already predicted, now **quantified rather than assumed**.
+
+**Consequence to say out loud: only 18 of 125 real postings are in a role we
+measure, and only 5 are BOTH in a measured role AND time-series-eligible.** The
+real data can support a cross-sectional view of current demand. It cannot
+support a real quarterly time series yet. More boards is the only fix.
+
+### EXTRACTION ON REAL TEXT — the headline finding
+
+| Corpus | n | Mean skills/posting | Median | Zero-skill |
+|---|---|---|---|---|
+| Synthetic | 600 | **11.8** | 12 | 0 (0.0%) |
+| Real (all) | 125 | **2.6** | 1 | **58 (46.4%)** |
+
+That raw comparison is **confounded by role mix** — an Account Executive
+posting correctly yields zero skills. On the roles we actually measure:
+
+| Role | n | Mean | Median | Zero-skill |
+|---|---|---|---|---|
+| Backend Developer + Data Analyst | **18** | **5.4** | 6 | 2 (11.1%) |
+| Other (unclassified) | 107 | 2.1 | 0 | 56 (52.3%) |
+
+**On comparable roles, extraction finds roughly half as many skills per posting
+on real text as on synthetic — 5.4 vs 11.8.** The synthetic figure is a ceiling
+artefact because the generator and extractor share `skills.py`.
+
+**This is NOT recall.** True recall needs a human to read each posting and list
+what should have been found. `data/recall_review.md` has 30 real postings ready
+for that markup. `SKILL_DEFS` was deliberately NOT tuned to improve these
+numbers.
+
+### Synthetic corpus
+
+600 postings, 7061 skill mentions, 11.8 per posting.
 
 Postings per role per quarter: 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25
 (2024-Q1 → 2026-Q3). **Seven of eleven quarters are below n=20 and flagged.**
@@ -158,9 +253,19 @@ Two consequences:
 
 **Nothing is currently broken.** These are honest gaps, in priority order.
 
-1. **No real data.** Everything is synthetic. `scraper.fetch()` raises. No
-   statement on the dashboard describes the actual Indian job market yet, and
-   the banner says so.
+1. **Real data is thin and skewed, and the sample cannot carry a time series.**
+   125 real postings, but only 18 in a measured role and only 5 both measured
+   and time-series-eligible. Coverage is limited to companies on Greenhouse /
+   Lever / Ashby with public boards whose token we found — venture-funded
+   product-tech firms. **Systematically missing: IT services (TCS, Infosys,
+   Wipro), where most Indian CS graduates go**, plus non-tech, government, PSU
+   and small firms. Say this before a judge does.
+
+   Related: **survivorship bias.** A posting created in 2023 that is still open
+   in 2026 is a posting that did not get filled. A time series built from
+   currently-open postings samples slow-to-fill roles.
+
+   `scraper.fetch()` still raises by design — NCS and Naukri remain dead ends.
 2. **The drift is synthetic by construction.** The generator encodes the ramps
    the analysis then measures. This validates the *pipeline*, not any claim
    about the market. Do not present the trends as findings about hiring.
@@ -342,40 +447,58 @@ construction, because the generator and extractor share `skills.py`.
 
 ## THE SINGLE NEXT TASK
 
-**Ingest the Djinni corpus (`lang-uk/recruitment-dataset-job-descriptions-english`,
-MIT, 141,897 real dated job descriptions, Oct 2020 - Dec 2023) into a separate
-`data/postings_djinni.jsonl` with `source: "djinni"`, and run the existing
-pipeline over it unchanged.**
+**It is the day before the hackathon. Stop building infrastructure.**
 
-Why this one, with four days to the 10th:
+The bar is 30% of the problem statement's 15 elements. We cover roughly 4:
+demand by role, demand by skill, real job-posting signals, and drift as an
+emerging-technology proxy. Two more are cheap and both are named explicitly in
+the PS:
 
-- It needs **no permission and no scraping**. MIT licence, direct download.
-- It is **real human-written job text with real dates**, so it converts our
-  weakest claim ("the pipeline works") into a demonstrated one, and it finally
-  produces the **extraction recall review artifact** we could not build this
-  session. Take 30 of its postings, dump text alongside extracted skills, and
-  hand it over for manual marking.
-- It exercises the multi-source design we already built: `pipeline.py` reads
-  any JSONL, the `source` field is preserved end to end, and the demo-data
-  banner keys off it.
+1. **Demand by LOCATION.** The data is already ingested and currently
+   discarded. 31 distinct location strings across the real corpus, **66
+   postings in India**, concentrated in Bangalore (46). Needs a normaliser —
+   `Bangalore, Karnataka` / `bengaluru` / `Bengaluru, Karnataka, India` are one
+   city written three ways. This is the first step toward the PS's
+   "district-level training plans".
 
-**It does NOT make our India claims real, and must never be shown as if it
-did.** The dashboard must label it Ukraine/Djinni wherever it surfaces. Expect
-recall to be materially below 100% — whatever the number is, write it down.
+2. **Flag obsolete or oversupplied courses.** Reverse the existing diff: skills
+   the curriculum teaches that demand does not want. Tells an administrator
+   what to **stop** doing, which is a better slide than the gap table.
 
-### Do these two in parallel, they cost almost nothing
+Then **reframe every UI string from student-facing to administrator-facing**
+(copy only), and **rehearse the demo sequence out loud, twice**.
 
-1. **Email DGE asking for NCS data access** (`support.ncs@gov.in`), stating this
-   is an SIH 2026 student project against problem statement SIH26134. This is a
-   government hackathon judged by government stakeholders; a written request
-   with a reply is itself a credible artifact, and turnaround is slow enough
-   that it must be sent now rather than after the 10th.
-2. **Find one server-rendered Indian job board** and confirm it renders JD text
-   in raw HTML (`curl` it and grep for the description) *before* writing any
-   scraper. That single check is what would have saved this session's Naukri
-   work. Going forward it also lets us build our own time series from today.
+**Explicitly dropped: the pytest suite (T5).** Tests protect a codebase over
+weeks of change. There is one day left and then a demo. Wrong investment now;
+revisit before the Grand Finale.
+
+### If you find 20 spare minutes
+
+Mark up 10 of the 30 postings in `data/recall_review.md` by hand. A real recall
+number is the answer to the second-hardest judge question, and right now that
+answer is "we measured a proxy".
 
 ## SESSION LOG
+
+**Session 3 - 2026-09-09 and 2026-09-15.** Git root fixed (the repo was rooted
+at `C:\Users\ayaan`, so any `git add` would have staged AppData and
+`.claude.json`); repo scoped to the project, pushed to
+github.com/lexion1337/sihtest, **now private**. Chart.js vendored — the
+dashboard loads zero external hosts. Multi-source loader plus a provenance
+banner computed from the data. **125 real postings ingested from ATS APIs**,
+with the Greenhouse/Lever date split enforced end to end. Extraction measured
+on real text for the first time: 5.4 skills/posting on measured roles vs 11.8
+synthetic.
+
+Two bugs caught by doing the measurement rather than assuming:
+- The provenance banner only flipped when the synthetic count hit exactly zero,
+  so a **mixed** corpus would have kept displaying "DEMO DATA — synthetic"
+  while serving 125 real postings. An honesty-rule violation that would have
+  shipped silently.
+- `clean_text()` stripped HTML tags **before** unescaping, but Greenhouse
+  returns content HTML-escaped. The markup survived and was then unescaped into
+  visible text, so the extractor was reading HTML soup and
+  `data-renderer-mark` was topping the candidate-miss list.
 
 **Session 2 - 2026-09-06.** Data acquisition session. **Zero real postings
 obtained.** Goal A (live NCS scrape) stopped at the permission gate: NCS has no
