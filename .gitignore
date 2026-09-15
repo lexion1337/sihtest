@@ -13,18 +13,15 @@ __pycache__/
 # Raw scrape/fetch cache (see scraper.py TODO). Can get large; keep it local.
 data/raw/
 
-# --- Third-party job description text: HELD BACK WHILE THE REPO IS PUBLIC ---
-# These contain ~674 KB of verbatim job descriptions belonging to Postman,
-# Meesho and CRED. Committing them to a PUBLIC repo is redistribution of
-# someone else's copyrighted content, which is a different act from reading a
-# public API for research.
+# NOTE on data/postings_real.jsonl and data/recall_review.md:
+# These hold verbatim third-party job text (Postman, Meesho, CRED). They were
+# held back while this repo was public, because redistributing someone else's
+# copyrighted postings is a different act from reading a public API for
+# research. The repo is now PRIVATE (verified 2026-09-15), so they are
+# committed for reproducibility.
 #
-# Reproducibility is NOT lost: `python ingest_ats.py` regenerates both files
-# from the public endpoints listed in data/boards.json in about ten seconds.
-#
-# Once the repo is private, delete these two lines and commit them.
-data/postings_real.jsonl
-data/recall_review.md
+# IF THIS REPO IS EVER MADE PUBLIC, re-add both paths here and git rm --cached
+# them first. `python ingest_ats.py` regenerates both in about ten seconds.
 
 # --- Secrets / local config ---
 .claude.json
