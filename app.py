@@ -85,6 +85,26 @@ def api_gap(role: str = Query(...)):
     return analysis.curriculum_gap(CON, role, CURRICULUM)
 
 
+@app.get("/api/locations")
+def api_locations(role: str = Query(None),
+                  country: str = Query("India"),
+                  top: int = Query(6, ge=1, le=20)):
+    """Demand by location -- named explicitly in the problem statement, and
+    the first step toward its district-level training plans."""
+    if role:
+        _check_role(role)
+    return analysis.demand_by_location(CON, role=role, country=country,
+                                       top_skills=top)
+
+
+@app.get("/api/obsolete")
+def api_obsolete(role: str = Query(...)):
+    """The gap table reversed: what the curriculum teaches that demand does
+    not ask for. Answers 'what should we stop funding'."""
+    _check_role(role)
+    return analysis.obsolete_courses(CON, role, CURRICULUM)
+
+
 @app.get("/api/skills")
 def api_skills(role: str = Query(...)):
     """Every skill measured for this role, not just the top N."""

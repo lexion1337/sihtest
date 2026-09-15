@@ -160,6 +160,39 @@
   </div>
 
   <div class="card">
+    <h2 id="obsTitle">Courses to retire or reduce</h2>
+    <p class="hint" id="obsHint"></p>
+    <div class="note" id="obsNote"></div>
+    <div style="overflow-x:auto">
+      <table id="obsTable">
+        <thead><tr>
+          <th>Skill taught</th>
+          <th class="num">Share of latest quarter</th>
+          <th class="num">Sample</th>
+          <th>Taught in</th>
+          <th>Recommended action</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Demand by location</h2>
+    <p class="hint" id="locHint"></p>
+    <div class="note" id="locNote"></div>
+    <div style="overflow-x:auto">
+      <table id="locTable">
+        <thead><tr>
+          <th>City</th><th>State</th><th class="num">Postings</th>
+          <th>Most-demanded skills in that city (share of its postings)</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Demanded and already taught</h2>
     <p class="hint" id="coveredHint"></p>
     <div style="overflow-x:auto">
@@ -312,14 +345,18 @@ let renderSeq = 0;
 async function render(){
   const seq = ++renderSeq;
   const role = $("#role").value, rank = $("#rank").value;
-  const [d, gap] = await Promise.all([
+  const [d, gap, obs, loc] = await Promise.all([
     get(`/api/drift?role=${encodeURIComponent(role)}&top=8&rank_by=${rank}`),
-    get(`/api/gap?role=${encodeURIComponent(role)}`)
+    get(`/api/gap?role=${encodeURIComponent(role)}`),
+    get(`/api/obsolete?role=${encodeURIComponent(role)}`),
+    get(`/api/locations?role=${encodeURIComponent(role)}&country=India`)
   ]);
   if(seq !== renderSeq) return;   // a newer render started; discard this result
   GAP = gap;
   drawChart(d);
   drawGap(gap);
+  drawObsolete(obs);
+  drawLocations(loc);
 }
 
 function drawChart(d){
@@ -407,12 +444,16 @@ function drawChart(d){
 }
 
 function drawGap(g){
+  // Administrator-facing, not student-facing. The same number answers a very
+  // different question depending on who is being addressed, and the customer
+  // here is a state skills department, not a candidate.
   $("#gapTitle").textContent =
-    `Curriculum gap — ${g.role}: rising, in ≥${g.criteria.min_latest_share_pct}% of `
-    + `${g.latest_quarter} postings, and absent from the syllabus`;
+    `Curriculum revisions indicated — ${g.role}`;
   $("#gapHint").textContent =
-    `${g.n_gaps} candidate gaps, of which ${g.n_gaps_significant} survive a `
-    + `p<${g.criteria.alpha} significance test. Sorted by share. `
+    `${g.n_gaps} skills are rising, appear in at least `
+    + `${g.criteria.min_latest_share_pct}% of ${g.latest_quarter} postings, and are taught by `
+    + `no subject in this curriculum. ${g.n_gaps_significant} of them survive a `
+    + `p<${g.criteria.alpha} significance test and are the ones worth acting on. `
     + `Denominator for every row: ${g.latest_n} ${g.role} postings in ${g.latest_quarter}.`;
 
   $("#gapNote").innerHTML = g.low_confidence
@@ -460,6 +501,72 @@ function drawGap(g){
   $("#covTable tbody").querySelectorAll("tr[data-skill]").forEach(tr => {
     tr.onclick = () => showEvidence(g.role, tr.dataset.skill, tr.dataset.q);
   });
+}
+
+/* ----------------------------------------------- obsolete / oversupplied */
+/* The gap table reversed. An administrator can only add a course by taking
+   capacity from something else, so "what to stop" is the harder half of the
+   decision and the one nobody usually brings evidence for. */
+function drawObsolete(o){
+  $("#obsTitle").textContent =
+    `Courses to retire or reduce — ${o.role}: taught in the syllabus, not asked for by employers`;
+  const rows = o.obsolete.concat(o.never_seen);
+  $("#obsHint").textContent =
+    `${rows.length} of ${o.n_taught} taught skills appear in under `
+    + `${o.criteria.max_latest_share_pct}% of ${o.role} postings in ${o.latest_quarter}. `
+    + `Denominator for every row: ${o.latest_n} postings.`;
+
+  $("#obsNote").innerHTML =
+    `<b>Read this as a question to put to employers, not a verdict.</b> `
+    + `A skill can be absent from job adverts and still be foundational — `
+    + `Compiler Design is rarely named in a posting and is not therefore worthless. `
+    + `What this table identifies is where the syllabus and the advertised demand `
+    + `disagree, which is exactly where an employer consultation is worth the time. `
+    + (OV.provenance !== "real"
+        ? `Note also that this corpus is <b>${esc(OV.provenance)}</b> (${OV.n_real} real, `
+          + `${OV.n_synthetic} synthetic), so these specific rows reflect the corpus loaded, not the Indian market.`
+        : ``);
+
+  $("#obsTable tbody").innerHTML = rows.length ? rows.map(r => {
+    const subs = (r.subjects||[]).map(s => `${esc(s.code)} ${esc(s.name)}`).join("<br>") || "—";
+    const action = r.latest_count === 0
+      ? "Validate with employers before renewing"
+      : "Review capacity / contact hours";
+    return `<tr>
+      <td><span class="skill">${esc(r.skill)}</span><div class="sub">${esc(r.category)}</div></td>
+      <td class="num" style="font-size:15px;font-weight:600">${pct(r.latest_share)}</td>
+      <td class="num">${r.latest_count} of ${r.latest_n}<div class="sub">postings</div></td>
+      <td class="sub">${subs}</td>
+      <td class="sub">${action}</td>
+    </tr>`; }).join("")
+    : `<tr><td colspan="5" class="sub">Every taught skill clears the threshold for this role.</td></tr>`;
+}
+
+/* ----------------------------------------------------- demand by location */
+function drawLocations(L){
+  const mh = L.maharashtra || [];
+  $("#locHint").textContent =
+    `${L.n_cities} cities, ${L.n_postings} postings in ${L.country}`
+    + (L.role ? ` for ${L.role}` : "")
+    + `. Raw location strings are normalised first — "Bangalore, Karnataka", `
+    + `"bengaluru" and "Bengaluru, Karnataka, India" are one city, not three.`;
+
+  $("#locNote").innerHTML = mh.length
+    ? `<b>Maharashtra (the problem statement's own state): ${mh.map(c => `${esc(c.city)} n=${c.n}`).join(", ")}.</b> `
+      + `Cities with fewer than ${L.min_n} postings are flagged — a share computed over a handful of `
+      + `postings is not a district plan. This is the first step toward one, not the finished article.`
+    : `No Maharashtra postings in the current corpus. Cities under n=${L.min_n} are flagged.`;
+
+  $("#locTable tbody").innerHTML = L.cities.length ? L.cities.map(c => `
+    <tr${c.state === "Maharashtra" ? ' style="background:#17251d"' : ''}>
+      <td><span class="skill">${esc(c.city)}</span>
+          ${c.state === "Maharashtra" ? '<div class="sub" style="color:var(--good)">Maharashtra</div>' : ''}</td>
+      <td class="sub">${esc(c.state || "—")}</td>
+      <td class="num" style="font-weight:600">${c.n}
+          ${c.low_confidence ? '<div><span class="tag t-low">n&lt;'+L.min_n+'</span></div>' : ''}</td>
+      <td class="sub">${c.skills.map(s => `${esc(s.skill)} <b>${pct(s.share)}</b> (${s.count}/${s.n})`).join(" · ")}</td>
+    </tr>`).join("")
+    : `<tr><td colspan="4" class="sub">No locations resolved for this selection.</td></tr>`;
 }
 
 /* -------------------------------------------------------------- evidence */

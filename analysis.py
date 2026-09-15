@@ -300,6 +300,142 @@ def top_skills(drift_result, k=8, rank_by="latest"):
     return rows[:k]
 
 
+# ------------------------------------------------------ demand by location
+
+# A city with fewer postings than this cannot support a per-city percentage.
+# Same principle as LOW_CONFIDENCE_N, applied to the location axis.
+LOCATION_MIN_N = LOW_CONFIDENCE_N
+
+
+def demand_by_location(con, role=None, country="India", top_skills=6, min_n=1):
+    """Which skills are demanded WHERE.
+
+    The problem statement asks for demand by location and for district-level
+    training plans; this is the first step toward both. Every city carries its
+    posting count, and any city under LOCATION_MIN_N is flagged exactly the way
+    a thin quarter is -- a 100% share over 2 postings is not a finding.
+    """
+    where, args = ["city != 'Unknown'"], []
+    if role:
+        where.append("role = ?")
+        args.append(role)
+    if country:
+        where.append("country = ?")
+        args.append(country)
+    w = " AND ".join(where)
+
+    cities = [dict(city=r["city"], state=r["state"], n=r["n"],
+                   low_confidence=r["n"] < LOCATION_MIN_N)
+              for r in con.execute(
+                  "SELECT city, state, COUNT(*) AS n FROM postings WHERE %s "
+                  "GROUP BY city, state HAVING n >= ? ORDER BY n DESC" % w,
+                  args + [min_n])]
+
+    for c in cities:
+        sargs = list(args) + [c["city"]]
+        c["skills"] = [
+            {"skill": r["skill"], "count": r["c"], "n": c["n"],
+             "share": round(100.0 * r["c"] / c["n"], 1)}
+            for r in con.execute(
+                "SELECT s.skill, COUNT(DISTINCT s.posting_id) AS c "
+                "FROM posting_skills s JOIN postings p ON p.id = s.posting_id "
+                "WHERE %s AND p.city = ? GROUP BY s.skill "
+                "ORDER BY c DESC LIMIT %d"
+                % (w.replace("city !=", "p.city !=").replace("role =", "p.role =")
+                     .replace("country =", "p.country ="), top_skills),
+                sargs)]
+
+    return {
+        "role": role,
+        "country": country,
+        "n_cities": len(cities),
+        "n_postings": sum(c["n"] for c in cities),
+        "min_n": LOCATION_MIN_N,
+        "cities": cities,
+        "maharashtra": [c for c in cities if c["state"] == "Maharashtra"],
+    }
+
+
+# ------------------------------------------------- obsolete / oversupplied
+
+# A taught skill asked for in fewer than this share of the latest quarter's
+# postings is a candidate for retirement or reduced capacity.
+OBSOLETE_MAX_SHARE_PCT = 10.0
+
+
+def obsolete_courses(con, role, curriculum=None, drift_result=None):
+    """The gap table, reversed: what the curriculum teaches that demand does
+    not want.
+
+    The problem statement asks to "flag obsolete or oversupplied courses".
+    This answers what an administrator should STOP funding, which is a
+    different and harder decision than what to add.
+
+    Two categories, both requiring the skill to be taught:
+      obsolete    -- asked for in < OBSOLETE_MAX_SHARE_PCT of latest postings
+      declining   -- trend is declining AND the move is statistically
+                     significant, so it is a real fall rather than noise
+    """
+    cur = curriculum or load_curriculum()
+    d = drift_result or drift(con, role)
+    taught = set(cur["taught_skills"])
+    measured = {s["skill"]: s for s in d["skills"]}
+
+    obsolete, declining, never_seen = [], [], []
+    for skill in sorted(taught):
+        m = measured.get(skill)
+        if m is None:
+            # Taught, and not one posting for this role mentioned it.
+            never_seen.append({"skill": skill,
+                               "category": skills_mod.skill_category(skill),
+                               "latest_share": 0.0, "latest_count": 0,
+                               "latest_n": d["latest_n"], "taught": True,
+                               "subjects": _subjects_teaching(cur, skill)})
+            continue
+        row = {
+            "skill": skill,
+            "category": m["category"],
+            "latest_share": m["latest_share"],
+            "latest_count": m["latest_count"],
+            "latest_n": m["latest_n"],
+            "latest_ci95": m["latest_ci95"],
+            "baseline_share": m["baseline_share"],
+            "change_pp": m["change_pp"],
+            "trend": m["trend"],
+            "p_value": m["p_value"],
+            "significant": m["significant"],
+            "low_confidence": m["low_confidence_latest"],
+            "taught": True,
+            "subjects": _subjects_teaching(cur, skill),
+        }
+        if m["latest_share"] < OBSOLETE_MAX_SHARE_PCT:
+            obsolete.append(row)
+        elif m["trend"] == "declining" and m["significant"]:
+            declining.append(row)
+
+    obsolete.sort(key=lambda r: r["latest_share"])
+    declining.sort(key=lambda r: r["change_pp"])
+    return {
+        "role": role,
+        "latest_quarter": d["latest_quarter"],
+        "latest_n": d["latest_n"],
+        "low_confidence": d["latest_n"] < LOW_CONFIDENCE_N,
+        "criteria": {"max_latest_share_pct": OBSOLETE_MAX_SHARE_PCT,
+                     "alpha": ALPHA},
+        "obsolete": obsolete,
+        "declining": declining,
+        "never_seen": never_seen,
+        "n_taught": len(taught),
+    }
+
+
+def _subjects_teaching(cur, skill):
+    """Which syllabus subjects teach this skill -- so a recommendation names
+    the course to revise, not just the skill."""
+    return [{"code": s["code"], "name": s["name"], "semester": s.get("semester")}
+            for s in cur["subjects"] if skill in s.get("skills", [])]
+
+
 # --------------------------------------------------------- curriculum gap
 
 def curriculum_gap(con, role, curriculum=None, drift_result=None):

@@ -25,6 +25,7 @@ import json
 import os
 import sqlite3
 
+import locations as loc_mod
 import skills as skills_mod
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +56,12 @@ CREATE TABLE postings (
     -- the time series and analysis.py enforces that.
     date_kind    TEXT NOT NULL,   -- created | published | modified
     ts_eligible  INTEGER NOT NULL,-- 1 = may appear in quarterly bins
+    -- Normalised from the raw location string by locations.py. The PS asks
+    -- for demand by location and district-level plans; the raw strings spell
+    -- one city three ways, so they must collapse before any per-city share.
+    city         TEXT NOT NULL,
+    state        TEXT,
+    country      TEXT,
     n_skills     INTEGER NOT NULL
 );
 
@@ -75,6 +82,7 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE INDEX idx_ps_role_quarter ON posting_skills(role, quarter);
 CREATE INDEX idx_ps_skill        ON posting_skills(skill);
 CREATE INDEX idx_p_role_quarter  ON postings(role, quarter);
+CREATE INDEX idx_p_city          ON postings(city);
 """
 
 
@@ -174,20 +182,23 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
         # true creation date by construction, so they default to eligible.
         date_kind = rec.get("date_kind", "created")
         eligible = 1 if rec.get("time_series_eligible", True) else 0
+        place = loc_mod.normalise(rec["location"])
         p_rows.append((rec["id"], rec["title"], rec["company"], rec["location"],
                        rec["posted_date"], q, rec["role"], rec["source"],
-                       date_kind, eligible, len(found)))
+                       date_kind, eligible, place["city"], place["state"],
+                       place["country"], len(found)))
         for sk in found:
             s_rows.append((rec["id"], sk, rec["role"], rec["posted_date"], q,
                            rec["source"], eligible))
 
-    con.executemany("INSERT INTO postings VALUES (?,?,?,?,?,?,?,?,?,?,?)", p_rows)
+    con.executemany("INSERT INTO postings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p_rows)
     con.executemany("INSERT INTO posting_skills VALUES (?,?,?,?,?,?,?)", s_rows)
 
     sources = {}
     for r in p_rows:
         sources[r[7]] = sources.get(r[7], 0) + 1
     n_excluded = sum(1 for r in p_rows if r[9] == 0)
+    n_unknown_city = sum(1 for r in p_rows if r[10] == "Unknown")
     excluded_by_source = {}
     for r in p_rows:
         if r[9] == 0:
@@ -200,6 +211,7 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
         "sources": json.dumps(sources),
         "source_files": json.dumps([os.path.basename(p) for p, _n, _s in per_file]),
         "n_ts_excluded": str(n_excluded),
+        "n_unknown_city": str(n_unknown_city),
         "ts_excluded_by_source": json.dumps(excluded_by_source),
         "date_min": min(r[4] for r in p_rows) if p_rows else "",
         "date_max": max(r[4] for r in p_rows) if p_rows else "",
