@@ -156,14 +156,20 @@ two false alerts by chance. After correction the Data Analyst list goes from
 **Extraction on real text:** 5.4 skills per posting on the roles we measure,
 versus 11.8 on synthetic. See §8 — this is a weakness, and we say so.
 
-**Threshold robustness:** re-running the decision across nine different
-threshold combinations, the same four competencies (LLM, Prompt Engineering,
-Agent Orchestration, dbt) pass in **every** cell. They don't depend on where we
-drew the line.
+**Threshold robustness:** re-running the decision across nine threshold
+combinations, the same four competencies (LLM, Prompt Engineering, Agent
+Orchestration, dbt) pass in **every** cell. Say this narrowly: the cells reuse
+the same postings, so they are **not nine independent confirmations**, and a
+large change naturally survives nearby thresholds. It rules out one way of
+being wrong — a threshold picked to flatter the result. It is not validity.
 
 **Unmapped terms:** our dictionary has 136 terms, so anything outside it is
-*unmeasured*, not absent. Scanning real postings for terms we DON'T track found
-**API, AI, DevOps and SRE** — genuine competencies we were blind to.
+*unmeasured*, not absent. Scanning real postings surfaced **API, AI, DevOps,
+SRE** as candidates. They are **candidates awaiting human review, not confirmed
+competencies** — "AI" may describe a company's product, "SRE" may be a role
+title. The number that will matter is how many reviewed candidates turn out to
+be valid distinct competencies, not how many the script finds. And 65 adverts
+from 2 employers is narrow support, however large the posting count looks.
 
 ---
 
@@ -275,7 +281,13 @@ Wi-Fi will be shared by ~50 teams.
 
 **The single most valuable job, and it needs zero programming:**
 
-> **Find more company job-board tokens.** We have 3 boards. We need 40+.
+> **Find more company job-board tokens — but the RIGHT ones.** We have 3 boards.
+> More boards is not automatically more evidence: of 125 real postings only
+> **5 are usable** (in a measured role AND carrying a true creation date). All
+> 64 Greenhouse postings contribute **zero**, because Greenhouse gives no
+> creation date. Forty more product-tech boards could double the corpus and
+> change nothing. Prefer **Lever** (usable dates) and employers whose roles a
+> trainee could actually be hired into.
 > Google `site:jobs.lever.co` or `site:boards.greenhouse.io`, find Indian tech
 > companies, and note the short name in the URL.
 > `jobs.lever.co/meesho` → the token is `meesho`.

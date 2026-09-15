@@ -512,8 +512,9 @@ Methods "Limits" row now states this explicitly in the UI.
   prevalence; whether two of them overlap is not a test of the difference.
 - **Threshold sensitivity.** A prespecified 3×3 grid reports WHICH
   recommendations persist. For Data Analyst, LLM, Prompt Engineering, Agent
-  Orchestration and dbt pass in **all nine cells** — they do not depend on
-  where the line was drawn.
+  Orchestration and dbt pass in **all nine cells**. Read narrowly: the cells
+  reuse the same observations and are not independent confirmations. It rules
+  out a threshold chosen to flatter the result; it is not validity.
 
 ### Open-vocabulary discovery — `phrases.py`
 
@@ -592,9 +593,13 @@ synonyms, then report precision among assigned records and recall among
 genuinely in-scope ones. "18 of 125" currently measures neither.
 
 After that, in order:
-1. **Board token hunt.** 3 boards → 40+. Pure legwork, parallelisable across
-   the team, and the only thing that fixes sample size. Prioritise Lever: its
-   dates are usable, Greenhouse's are not.
+1. **Board token hunt — optimise YIELD, not board count.** `python -c
+   "import pipeline,analysis;print(analysis.collection_yield(pipeline.connect()))"`
+   or the Methods tab shows the funnel: 125 collected → 18 in a measured role →
+   61 date-eligible → **5 usable (4.0%)**. Greenhouse contributes **0 usable**
+   because it has no creation date. Forty more product-tech boards could leave
+   the usable count unchanged. Prefer Lever, and employers whose roles a
+   trainee could actually be hired into.
 2. **Mark up `data/recall_review.md`.** 30 real postings await hand markup. No
    real recall number exists until someone does it.
 3. **Start prospective collection now.** Freeze the first complete crawl of

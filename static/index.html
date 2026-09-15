@@ -67,6 +67,8 @@
   .prov{font-size:16px;padding:5px 12px;border-radius:8px;border:1px solid var(--rule);
         color:var(--ink2);background:var(--neutralbg);white-space:nowrap}
   .prov.synthetic{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
+  .prov.mixed{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
+  .prov.real{background:#EAF4EC;color:#14532D;border-color:#BBD9C4}
   .cols{display:flex;gap:28px;align-items:stretch}
   .col{flex:1;min-width:0}
   .col.right{border-left:1px solid var(--rule);padding-left:28px}
@@ -251,7 +253,8 @@
            border:1px solid #E5C77A;border-radius:8px;padding:12px 14px" id="termsWarn"></div>
       <div style="overflow-x:auto"><table id="termsTable">
         <thead><tr><th>Candidate term</th><th class="num">Postings</th>
-          <th class="num">Employers</th><th>Example sentence</th></tr></thead>
+          <th class="num">Employers</th><th>Adjudication</th>
+          <th>Example sentence</th></tr></thead>
         <tbody></tbody></table></div>
     </div>
   </section>
@@ -288,7 +291,9 @@ let OV = null, F = null, FEAT = null, LOC = null, SYL = null, SENS = null,
 let supAll = false, disAll = false, seq = 0;
 
 async function get(url){
-  const r = await fetch(url);
+  // no-store: the database is rebuilt between runs, so a cached response can
+  // show numbers that no longer exist. Correctness, not performance.
+  const r = await fetch(url, {cache: "no-store"});
   if(!r.ok) throw new Error(url + " → HTTP " + r.status);
   return r.json();
 }
@@ -367,7 +372,7 @@ async function load(){
     if(my !== seq) return;
     $("#histWrap").style.display = "none";
     drawHero(); drawDiscarded(); drawLists(); drawSensitivity();
-    drawLocation(); drawSyllabus(); drawMethods(); loadTerms();
+    drawLocation(); drawSyllabus(); drawMethods(); loadTerms(); loadYield();
   }catch(e){ fail(e.message); }
 }
 
@@ -385,6 +390,7 @@ function drawHero(){
     return;
   }
   const f = FEAT, pv = f.prevalence, sy = f.syllabus, st = f.statistics, cp = f.composition;
+  const dc = f.denominator_composition, bc = f.baseline_composition;
   const mapped = sy.taught
     ? `${sy.n_subjects_teaching} of ${sy.n_subjects_total} subjects`
     : `0 of ${sy.n_subjects_total} subjects`;
@@ -393,13 +399,16 @@ function drawHero(){
       <div class="kicker">Review candidate</div>
       <div class="heroTop">
         <div class="heroSkill">${esc(f.skill)}</div>
-        <span class="prov ${esc(cp.provenance)}">${esc(PROV_LABEL[cp.provenance] || cp.provenance)}
-          — ${cp.n_real} real / ${cp.n_synthetic} synthetic of the ${cp.total} counted</span>
+        <span class="prov ${esc(f.scenario.key)}">${esc(f.scenario.label)}</span>
       </div>
       <div class="cols">
         <div class="col">
           <div class="colhead">Advertised requirement</div>
           <div><span class="big">${pct(pv.share)}</span><span class="beside">${pv.count} of ${pv.n} postings</span></div>
+          <div class="under" style="font-size:15px">Counted ${cp.n_real} real /
+            ${cp.n_synthetic} synthetic &nbsp;·&nbsp; denominator ${dc.n_real} real /
+            ${dc.n_synthetic} synthetic &nbsp;·&nbsp; baseline ${bc.n_real} real /
+            ${bc.n_synthetic} synthetic</div>
           <div class="under">${esc(f.role)} · ${esc(f.latest_quarter)} · 95% prevalence interval ${pct(pv.ci95[0])} – ${pct(pv.ci95[1])}
             ${pv.low_confidence ? '<span class="flag">LOW CONFIDENCE · n=' + pv.n + '</span>' : ''}</div>
         </div>
@@ -416,7 +425,8 @@ function drawHero(){
     <div>
       <div class="actionband">
         <div class="do">Review whether this competency is already taught or needs an added practical.</div>
-        <div class="bound">A missing syllabus mapping does not establish missing teaching.</div>
+        <div class="bound">A missing syllabus mapping does not establish missing teaching.
+          ${esc(f.scenario.detail)}</div>
       </div>
       <div class="btnrow">
         <button class="btn" id="heroEv">Check supporting postings</button>
@@ -424,7 +434,7 @@ function drawHero(){
         <button class="btn link" id="heroHist">View history</button>
         <span class="tiny" style="font-size:14px">${esc(st.correction)}-adjusted p = ${st.p_adjusted}
           (raw ${st.p_raw}, family of ${st.family_size}) &mdash; ${esc(st.decision)}
-          &middot; Fisher exact p = ${st.p_fisher}
+          &middot; Fisher exact p = ${st.p_fisher} (sensitivity only, gates nothing)
           &middot; change ${pp(st.diff_ci95 ? st.diff_ci95[0] : 0)} to
           ${pp(st.diff_ci95 ? st.diff_ci95[1] : 0)} (95% Newcombe)</span>
       </div>
@@ -547,15 +557,17 @@ function drawSensitivity(){
     `The current rule is prevalence ≥ ${S.current_rule.min_share_pct}% and change ≥ `
     + `${S.current_rule.min_change_pp} pp. Re-running across ${S.n_cells} combinations `
     + `(prevalence ${S.grid.prevalence.join("/")}%, change ${S.grid.change.join("/")} pp) `
-    + `gives ${S.n_robust} competencies that pass in EVERY cell. Those do not depend on `
-    + `where the line was drawn; anything passing in only a few cells does.`;
+    + `gives ${S.n_robust} competencies that pass in EVERY cell. Read that narrowly: `
+    + `the cells reuse the same observations, so they are not independent confirmations, `
+    + `and a large change will naturally survive neighbouring thresholds. It rules out one `
+    + `specific way of being wrong — a threshold picked to flatter the result. It is not validity.`;
   $("#sensTable tbody").innerHTML = S.persistence.length
     ? S.persistence.map(r => `<tr>
         <td><span class="skillname">${esc(r.skill)}</span></td>
         <td class="num">${r.cells} of ${r.of}</td>
         <td class="num">${pct(r.latest_share)}</td>
         <td>${r.robust
-              ? '<span class="dec sup">robust to threshold choice</span>'
+              ? '<span class="dec sup">robust across the tested grid</span>'
               : '<span class="dec">depends on the threshold</span>'}</td></tr>`).join("")
     : `<tr><td colspan="4" class="tiny">No competency passed in any cell.</td></tr>`;
 }
@@ -564,6 +576,12 @@ function drawSensitivity(){
 /* The dictionary is closed, so a term not in it is UNMEASURED, not absent from
    demand. This is the discovery half: candidates for a human to adjudicate. It
    is deliberately NOT wired into any count elsewhere on the site. */
+let YIELD = null;
+async function loadYield(){
+  try{ YIELD = await get("/api/yield"); }catch(e){ return; }
+  drawMethods();
+}
+
 async function loadTerms(){
   try{
     TERMS = await get("/api/phrases?min_postings=3&min_employers=2&limit=40");
@@ -575,15 +593,21 @@ async function loadTerms(){
     + `${T.dictionary_size}-term dictionary. Scanned ${T.n_postings_scanned} real postings. `
     + `Employer count matters more than posting count: ten copied adverts from one employer `
     + `are one lead, not ten confirmations.`;
-  $("#termsWarn").textContent = T.note;
+  $("#termsWarn").textContent = T.note
+    + " Not every occurrence is a requirement: \"AI\" may describe a company's product, "
+    + "\"SRE\" may be a role title, and \"API\" may be context rather than a competency. "
+    + "The metric that matters is how many reviewed candidates turn out to be valid, "
+    + "distinct competencies — not how many phrases the script finds.";
   $("#termsTable tbody").innerHTML = T.candidates.length
     ? T.candidates.map(r => `<tr>
         <td><span class="skillname">${esc(r.phrase)}</span>
             ${r.single_employer ? '<div class="sub2"><span class="flag">single-employer lead</span></div>' : ""}</td>
         <td class="num">${r.postings}</td>
         <td class="num">${r.employers}</td>
-        <td class="sub2">${esc((r.example || "").slice(0,180))}</td></tr>`).join("")
-    : `<tr><td colspan="4" class="tiny">No candidates met the thresholds.</td></tr>`;
+        <td><span class="dec">Not reviewed</span>
+            <div class="sub2">competency / task / product / alias / noise?</div></td>
+        <td class="sub2">${esc((r.example || "").slice(0,150))}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="tiny">No candidates met the thresholds.</td></tr>`;
 }
 
 /* ------------------------------------------------------------- location */
@@ -643,6 +667,19 @@ function drawSyllabus(){
 function drawMethods(){
   const by = Object.entries(OV.sources||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(" · ");
   const c = F.correction || {};
+  const Y = YIELD;
+  const yieldRow = Y ? [
+    ["Collection yield", `${Y.real_total.collected} real postings collected, ${Y.real_total.usable} usable (${Y.real_total.yield_pct}%).`,
+     `More boards raises "collected". Only boards whose postings are target-relevant AND
+      carry a true creation date raise "usable", which is the number worth optimising.
+      <table style="margin-top:10px"><thead><tr><th>Source</th><th class="num">Collected</th>
+      <th class="num">In a measured role</th><th class="num">Date-eligible</th>
+      <th class="num">Usable</th><th class="num">Yield</th></tr></thead><tbody>`
+      + Y.by_source.map(r => `<tr><td>${esc(r.source)}</td><td class="num">${r.collected}</td>
+          <td class="num">${r.in_measured_role}</td><td class="num">${r.date_eligible}</td>
+          <td class="num"><b>${r.usable}</b></td><td class="num">${r.yield_pct}%</td></tr>`).join("")
+      + `</tbody></table>`]
+  ] : [];
   const rows = [
     ["Sources", `${OV.n_postings} postings — ${OV.n_synthetic} synthetic, ${OV.n_real} real. ${by}.`,
      `Real records come from public, unauthenticated ATS job-board APIs (Greenhouse, Lever) that companies
@@ -664,7 +701,19 @@ function drawMethods(){
       title rules; anything uncertain becomes "Other (unclassified)" rather than being forced into a
       bucket. Syllabus is ${esc(OV.curriculum.name)} (${esc(OV.curriculum.source)}) — a demonstration
       syllabus, not an ITI or NSQF qualification pack.`],
-    ["Statistics", `Two-proportion z-test with a Fisher exact cross-check, ${esc(c.method||"—")} correction across ${c.family_size||"—"} tested competencies, alpha ${F.criteria.alpha}.`,
+    ["Decision rule", `ONE procedure decides "supported": pooled two-proportion z-test, ${esc(c.method||"—")}-adjusted across all ${c.family_size||"—"} competencies measured for the role, p < ${F.criteria.alpha}.`,
+     `Fisher's exact test is computed and displayed as a SENSITIVITY CHECK and gates
+      nothing. Reporting two tests without saying which one decides invites picking
+      whichever supports each finding, so the rule is declared in one place in the code
+      (analysis.PRIMARY_RULE) and verify.py asserts that the supported list is a strict
+      consequence of it.
+      The correction family is every competency measured for that ROLE. Per-role
+      correction does not control a list pooled across roles, districts or repeated
+      releases -- if those are ever combined, the family must be redeclared.
+      Note on motivation: "about two false alerts across forty tests at p<0.05" describes
+      what would happen if all forty nulls were true and each test were properly
+      calibrated. It is NOT an estimate of how many previous findings were false.`],
+    ["Statistics", `Primary test is a normal approximation, weakly calibrated at these sample sizes. Fisher exact reported alongside.`,
      `Baseline is POOLED across the first two observed quarters and compared with the latest quarter.
       Confidence intervals shown are 95% Wilson intervals for PREVALENCE, not for the change.
       Raw and adjusted p-values are both reported and never relabelled as each other:
@@ -690,7 +739,7 @@ function drawMethods(){
       Postings still open over-sample slow-to-fill roles. Every figure describes the sampled
       advertisements, not Maharashtra's labour market.`],
   ];
-  $("#methods").innerHTML = rows.map(([t,fact,body]) =>
+  $("#methods").innerHTML = rows.concat(yieldRow).map(([t,fact,body]) =>
     `<details class="m"><summary><b>${esc(t)}</b> — ${esc(fact)}</summary>
       <div class="body">${body}</div></details>`).join("");
 }

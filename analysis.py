@@ -180,6 +180,21 @@ ALPHA = 0.05
 # improvement over raw p, not a warranty.
 CORRECTION_METHOD = "benjamini-hochberg"
 
+# THE DECISION RULE, DECLARED IN ONE PLACE.
+#
+# Exactly one procedure controls the "supported" badge: a pooled two-sided
+# two-proportion z-test, corrected with Benjamini-Hochberg across the complete
+# family of every competency measured for that role. Fisher's exact test is
+# computed and displayed as a SENSITIVITY CHECK and never gates anything.
+#
+# This matters because reporting two tests invites picking whichever one
+# supports each finding. verify.py asserts that the supported list is a strict
+# consequence of the BH-adjusted z-test, so the rule cannot drift.
+PRIMARY_TEST = "pooled two-proportion z-test, two-sided"
+PRIMARY_RULE = ("BH-adjusted p < alpha, corrected across every competency "
+                "measured for the role")
+SENSITIVITY_TEST = "Fisher exact, two-sided (reported only, gates nothing)"
+
 
 def benjamini_hochberg(pvals):
     """Step-up BH adjusted p-values, returned in input order.
@@ -472,6 +487,43 @@ def _syllabus_mapping(cur, skill):
     }
 
 
+def _baseline_composition(con, role, quarters):
+    """Composition of the pooled baseline window."""
+    agg = {}
+    for q in quarters or []:
+        c = cohort_composition(con, role, None, q)
+        for k, v in c["by_source"].items():
+            agg[k] = agg.get(k, 0) + v
+    synth, real = split_counts(agg)
+    return {"by_source": agg, "n_synthetic": synth, "n_real": real,
+            "total": synth + real, "provenance": provenance(agg)}
+
+
+def _scenario_label(num, den, base):
+    """One phrase for what kind of comparison this actually is.
+
+    If numerator, denominator and baseline are all generated records, the
+    finding is a SYNTHETIC VALIDATION SCENARIO -- it demonstrates that the
+    detector works, and says nothing about any labour market. Making a reader
+    infer that from three separate counts is worse than saying it.
+    """
+    provs = {num["provenance"], den["provenance"], base["provenance"]}
+    provs.discard("empty")
+    if provs == {"synthetic"}:
+        return {"key": "synthetic",
+                "label": "Synthetic validation scenario",
+                "detail": ("Numerator, denominator and baseline are all generated "
+                           "records. This demonstrates the detector; it is not a "
+                           "measurement of any labour market.")}
+    if provs == {"real"}:
+        return {"key": "real", "label": "Real-posting finding",
+                "detail": "Numerator, denominator and baseline are all observed records."}
+    return {"key": "mixed", "label": "Mixed-source finding",
+            "detail": ("Real and generated records are combined in this comparison. "
+                       "Check the numerator, denominator and baseline composition "
+                       "before quoting it.")}
+
+
 def finding(con, role, skill, curriculum=None, drift_result=None):
     """Everything needed to state one finding honestly, in one payload."""
     cur = curriculum or load_curriculum()
@@ -499,7 +551,9 @@ def finding(con, role, skill, curriculum=None, drift_result=None):
         },
         "change": {"change_pp": m["change_pp"], "trend": m["trend"]},
         "statistics": {
-            "test": "two-proportion z-test (pooled), two-sided",
+            "test": PRIMARY_TEST,
+            "rule": PRIMARY_RULE,
+            "sensitivity_test": SENSITIVITY_TEST,
             "p_raw": m["p_value"],
             "p_adjusted": m["p_adjusted"],
             "correction": m["correction_method"],
@@ -515,6 +569,16 @@ def finding(con, role, skill, curriculum=None, drift_result=None):
             "diff_ci_note": "95% Newcombe interval for the CHANGE, in percentage points",
         },
         "composition": cohort_composition(con, role, skill, lq),
+        # The numerator's composition alone is not enough: a synthetic
+        # numerator over a mixed denominator is a different claim from a
+        # wholly synthetic comparison, and a reader should not have to
+        # reconstruct which one they are looking at.
+        "denominator_composition": cohort_composition(con, role, None, lq),
+        "baseline_composition": _baseline_composition(con, role, m["baseline_quarters"]),
+        "scenario": _scenario_label(
+            cohort_composition(con, role, skill, lq),
+            cohort_composition(con, role, None, lq),
+            _baseline_composition(con, role, m["baseline_quarters"])),
         "syllabus": _syllabus_mapping(cur, skill),
         "cohort_definition": (
             "postings with role=%s, quarter=%s, excluding records whose only "
@@ -588,6 +652,58 @@ def findings(con, role, curriculum=None, drift_result=None):
     }
 
 
+# ----------------------------------------------------------- collection yield
+
+def collection_yield(con, measured_roles=None):
+    """What survives each filter, per source.
+
+    "More boards" is not automatically "more evidence". Forty further
+    product-tech boards could enlarge the corpus while leaving the number of
+    eligible, target-relevant, properly dated observations unchanged. The
+    number worth optimising is the LAST column, not the first -- so report the
+    funnel rather than the headline count.
+    """
+    if measured_roles is None:
+        measured_roles = [r for r in roles(con) if r != "Other (unclassified)"]
+    qs = ",".join("?" * len(measured_roles)) or "''"
+
+    rows = []
+    for r in con.execute("SELECT DISTINCT source FROM postings ORDER BY source"):
+        src = r["source"]
+        collected = con.execute(
+            "SELECT COUNT(*) c FROM postings WHERE source = ?", (src,)).fetchone()["c"]
+        unique = con.execute(
+            "SELECT COUNT(DISTINCT id) c FROM postings WHERE source = ?", (src,)).fetchone()["c"]
+        in_role = con.execute(
+            "SELECT COUNT(*) c FROM postings WHERE source = ? AND role IN (%s)" % qs,
+            [src] + measured_roles).fetchone()["c"]
+        dated = con.execute(
+            "SELECT COUNT(*) c FROM postings WHERE source = ? AND ts_eligible = 1",
+            (src,)).fetchone()["c"]
+        usable = con.execute(
+            "SELECT COUNT(*) c FROM postings WHERE source = ? AND ts_eligible = 1 "
+            "AND role IN (%s)" % qs, [src] + measured_roles).fetchone()["c"]
+        rows.append({"source": src, "collected": collected, "unique": unique,
+                     "in_measured_role": in_role, "date_eligible": dated,
+                     "usable": usable,
+                     "yield_pct": round(100.0 * usable / collected, 1) if collected else 0.0})
+
+    real = [r for r in rows if r["source"] not in SYNTHETIC_SOURCES]
+    tot = {k: sum(r[k] for r in real)
+           for k in ("collected", "unique", "in_measured_role", "date_eligible", "usable")}
+    tot["yield_pct"] = (round(100.0 * tot["usable"] / tot["collected"], 1)
+                        if tot["collected"] else 0.0)
+    return {
+        "measured_roles": measured_roles,
+        "stages": ["collected", "unique", "in_measured_role", "date_eligible", "usable"],
+        "by_source": rows,
+        "real_total": tot,
+        "note": ("usable = in a measured role AND carrying a true creation date. "
+                 "Adding boards raises 'collected'; only boards whose postings are "
+                 "target-relevant and properly dated raise 'usable'."),
+    }
+
+
 # -------------------------------------------------- threshold sensitivity
 
 # The grid reported by threshold_sensitivity(). Prespecifying these prevents
@@ -605,8 +721,11 @@ def threshold_sensitivity(con, role, curriculum=None, drift_result=None):
     rule changes -- and specifically WHICH actions persist, not merely how many
     pass.
 
-    A competency appearing in every cell is robust to the threshold choice. One
-    appearing in a single cell is an artefact of where we drew the line.
+    Read the result narrowly. Passing every cell means robust ACROSS THE
+    TESTED GRID -- the cells reuse the same observations and neighbouring
+    thresholds are not independent confirmations, so a large planted change
+    will naturally survive all of them. It rules out one specific way of being
+    wrong (a threshold chosen to flatter the result). It is not validity.
     """
     cur = curriculum or load_curriculum()
     d = drift_result or drift(con, role)
@@ -643,6 +762,9 @@ def threshold_sensitivity(con, role, curriculum=None, drift_result=None):
         "cells": cells,
         "persistence": rows,
         "n_robust": sum(1 for r in rows if r["robust"]),
+        "interpretation": ("Robust across the tested grid only. The cells reuse the "
+                           "same observations, so they are not independent "
+                           "confirmations."),
     }
 
 

@@ -21,6 +21,7 @@ Run:  python pipeline.py
 
 import datetime as dt
 import glob
+import threading
 import json
 import os
 import sqlite3
@@ -237,13 +238,64 @@ def build(db_path=DB_PATH, postings_path=None, verbose=True):
     return meta
 
 
+_LOCAL = threading.local()
+
+
+class _ThreadLocalConnection:
+    """One real SQLite connection PER THREAD, behind a connection-like object.
+
+    FastAPI runs synchronous endpoints in a threadpool, so a single shared
+    sqlite3 connection is used by several threads at once. sqlite3 does not
+    serialise that: two threads stepping cursors on the same connection can
+    truncate each other's result sets.
+
+    The symptom was ugly and intermittent. The dashboard fires four requests in
+    parallel on load; sometimes analysis.roles() came back short, so
+    _check_role could not find "Data Analyst" and the endpoint returned 404 on
+    a role that plainly exists. Sequential curl never reproduced it. This would
+    have failed at random during a live demo.
+
+    Each thread gets its own connection. SQLite handles multi-connection reads
+    fine, and this pipeline only ever reads through here.
+    """
+
+    def __init__(self, db_path):
+        self._db_path = db_path
+
+    def _con(self):
+        con = getattr(_LOCAL, "con", None)
+        if con is None or getattr(_LOCAL, "path", None) != self._db_path:
+            con = sqlite3.connect(self._db_path, check_same_thread=False)
+            con.row_factory = sqlite3.Row
+            _LOCAL.con = con
+            _LOCAL.path = self._db_path
+        return con
+
+    def execute(self, *a, **k):
+        return self._con().execute(*a, **k)
+
+    def executemany(self, *a, **k):
+        return self._con().executemany(*a, **k)
+
+    def commit(self):
+        return self._con().commit()
+
+    def close(self):
+        con = getattr(_LOCAL, "con", None)
+        if con is not None:
+            con.close()
+            _LOCAL.con = None
+
+
 def connect(db_path=DB_PATH):
-    """Open the DB read-only-ish, building it first if it does not exist."""
+    """A read handle that is safe to use from several threads.
+
+    Building the database if it is missing stays here so that any entry point
+    -- run.py, analysis.py, verify.py -- works from a clean checkout.
+    """
     if not os.path.exists(db_path):
         build(db_path, verbose=False)
-    con = sqlite3.connect(db_path, check_same_thread=False)
-    con.row_factory = sqlite3.Row
-    return con
+    return _ThreadLocalConnection(db_path)
 
 
 if __name__ == "__main__":

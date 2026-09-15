@@ -29,6 +29,23 @@ CON = pipeline.connect()
 CURRICULUM = analysis.load_curriculum()
 
 
+@app.middleware("http")
+async def no_store_api(request, call_next):
+    """API responses must never be cached.
+
+    The database is rebuilt between runs (python pipeline.py), so a cached
+    response can show numbers that no longer exist -- and a stale 404 can make
+    a working dashboard look broken, which is exactly what happened during
+    development. For a project whose claim is that every number traces to a
+    current record, serving a stale one is a correctness bug, not a nuisance.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 def _check_role(role):
     valid = analysis.roles(CON)
     if role not in valid:
@@ -108,6 +125,12 @@ def api_sensitivity(role: str = Query(...)):
     """Which recommendations survive across plausible decision thresholds."""
     _check_role(role)
     return analysis.threshold_sensitivity(CON, role, CURRICULUM)
+
+
+@app.get("/api/yield")
+def api_yield():
+    """Collection funnel: collected -> unique -> in role -> dated -> usable."""
+    return analysis.collection_yield(CON)
 
 
 @app.get("/api/phrases")
