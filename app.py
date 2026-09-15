@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import analysis
+import phrases
 import pipeline
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -100,6 +101,27 @@ def api_finding(role: str = Query(...), skill: str = Query(...)):
     if f is None:
         raise HTTPException(404, "skill %r not measured for role %r" % (skill, role))
     return f
+
+
+@app.get("/api/sensitivity")
+def api_sensitivity(role: str = Query(...)):
+    """Which recommendations survive across plausible decision thresholds."""
+    _check_role(role)
+    return analysis.threshold_sensitivity(CON, role, CURRICULUM)
+
+
+@app.get("/api/phrases")
+def api_phrases(min_postings: int = Query(3, ge=1, le=50),
+                min_employers: int = Query(2, ge=1, le=20),
+                limit: int = Query(40, ge=1, le=200)):
+    """Dictionary-absent candidate terms, for human adjudication.
+
+    Discovery only. Nothing here is counted anywhere else on the site and
+    nothing is added to the dictionary by this endpoint.
+    """
+    return phrases.discover(pipeline.read_postings(),
+                            min_postings=min_postings,
+                            min_employers=min_employers, limit=limit)
 
 
 @app.get("/api/locations")

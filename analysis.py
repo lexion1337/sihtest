@@ -103,6 +103,67 @@ def two_proportion_p(c1, n1, c2, n2):
     return (round(z, 3), round(p, 4))
 
 
+def fisher_exact_2x2(a, b, c, d):
+    """Two-sided Fisher's exact test on [[a,b],[c,d]]. Returns a p-value.
+
+    Why this exists alongside the z-test. At n=25 with a skill sitting near 5%
+    prevalence, expected cell counts fall to 1-3 and the normal approximation
+    is a poor description of a discrete, skewed sampling distribution. Fisher
+    conditions on the margins and is finite-sample valid under its assumptions.
+
+    It is also SEVERELY conservative in this regime -- a simulated reference at
+    nominal 5% put the pooled z-test near 1.98 / 4.87 / 5.49 percent actual
+    rejection at true prevalence 5 / 10 / 20 percent, against Fisher at
+    0.08 / 0.88 / 2.22 percent. So this is reported as a conservative cross-
+    check, not as a replacement: if a finding survives Fisher it is not an
+    artefact of the normal approximation.
+
+    Neither test fixes employer clustering, selection bias or repeated
+    observations of the same employer. "Exact" describes a calculation under a
+    model, not validity for Maharashtra's labour market.
+    """
+    n = a + b + c + d
+    if n == 0:
+        return 1.0
+    r1, r2, k = a + b, c + d, a + c
+    if r1 == 0 or r2 == 0 or k == 0 or (b + d) == 0:
+        return 1.0
+
+    def prob(x):
+        return (math.comb(r1, x) * math.comb(r2, k - x)) / math.comb(n, k)
+
+    lo, hi = max(0, k - r2), min(r1, k)
+    p_obs = prob(a)
+    total = 0.0
+    for x in range(lo, hi + 1):
+        px = prob(x)
+        if px <= p_obs * (1 + 1e-9):
+            total += px
+    return round(min(1.0, total), 4)
+
+
+def newcombe_diff_ci(c_base, n_base, c_late, n_late):
+    """95% Newcombe (Wilson-based) interval for the DIFFERENCE in proportions.
+
+    The Wilson intervals already shown are for each PREVALENCE separately.
+    Checking whether two such intervals overlap is not a test of the
+    difference and is needlessly conservative. Newcombe's method builds an
+    interval for the difference itself out of the two Wilson intervals, and
+    behaves far better than a Wald difference interval at small n.
+
+    Returned in percentage points, for latest minus baseline.
+    """
+    if n_base <= 0 or n_late <= 0:
+        return (0.0, 0.0)
+    p1, p2 = c_late / n_late, c_base / n_base
+    l1, u1 = (v / 100.0 for v in wilson95(c_late, n_late))
+    l2, u2 = (v / 100.0 for v in wilson95(c_base, n_base))
+    d = p1 - p2
+    lower = d - math.sqrt((p1 - l1) ** 2 + (u2 - p2) ** 2)
+    upper = d + math.sqrt((u1 - p1) ** 2 + (p2 - l2) ** 2)
+    return (round(max(-1.0, lower) * 100, 1), round(min(1.0, upper) * 100, 1))
+
+
 # Significance threshold for calling a trend a finding rather than a wiggle.
 ALPHA = 0.05
 
@@ -278,6 +339,10 @@ def drift(con, role):
             trend = "stable"
         lo, hi = wilson95(latest_count, latest_n)
         z, pval = two_proportion_p(baseline_count, baseline_n, latest_count, latest_n)
+        p_fisher = fisher_exact_2x2(baseline_count, baseline_n - baseline_count,
+                                    latest_count, latest_n - latest_count)
+        diff_lo, diff_hi = newcombe_diff_ci(baseline_count, baseline_n,
+                                            latest_count, latest_n)
 
         out.append({
             "skill": skill,
@@ -297,6 +362,9 @@ def drift(con, role):
             "trend": trend,
             "z": z,
             "p_value": pval,
+            "p_fisher": p_fisher,
+            "significant_fisher": p_fisher < ALPHA,
+            "diff_ci95": [diff_lo, diff_hi],
             "significant": pval < ALPHA,
             "total_postings_with_skill": sum(by_q.values()),
             "low_confidence_latest": latest_n < LOW_CONFIDENCE_N,
@@ -320,6 +388,7 @@ def drift(con, role):
             "alpha": ALPHA,
             "n_significant_raw": sum(1 for s in out if s["significant"]),
             "n_significant_adjusted": sum(1 for s in out if s["significant_adjusted"]),
+            "n_significant_fisher": sum(1 for s in out if s["significant_fisher"]),
         },
         "excluded_from_time_series": ts_exclusions(con, role),
         "quarters": [{"quarter": q, "n": n, "low_confidence": n < LOW_CONFIDENCE_N}
@@ -438,6 +507,12 @@ def finding(con, role, skill, curriculum=None, drift_result=None):
             "alpha": ALPHA,
             "decision": ("supported" if m["significant_adjusted"]
                          else "not supported at this precision"),
+            "p_fisher": m["p_fisher"],
+            "fisher_note": ("survives a conservative Fisher exact cross-check"
+                            if m["significant_fisher"]
+                            else "does NOT survive a conservative Fisher exact cross-check"),
+            "diff_ci95": m["diff_ci95"],
+            "diff_ci_note": "95% Newcombe interval for the CHANGE, in percentage points",
         },
         "composition": cohort_composition(con, role, skill, lq),
         "syllabus": _syllabus_mapping(cur, skill),
@@ -466,6 +541,7 @@ def findings(con, role, curriculum=None, drift_result=None):
             "baseline_share": m["baseline_share"], "baseline_count": m["baseline_count"],
             "baseline_n": m["baseline_n"], "change_pp": m["change_pp"],
             "trend": m["trend"], "p_raw": m["p_value"], "p_adjusted": m["p_adjusted"],
+            "p_fisher": m["p_fisher"], "diff_ci95": m["diff_ci95"],
             "taught": m["skill"] in taught,
             "n_subjects_teaching": len(_subjects_teaching(cur, m["skill"])),
             "low_confidence": m["low_confidence_latest"],
@@ -509,6 +585,64 @@ def findings(con, role, curriculum=None, drift_result=None):
         "supported": supported,
         "discarded": discarded,
         "excluded_from_time_series": d["excluded_from_time_series"],
+    }
+
+
+# -------------------------------------------------- threshold sensitivity
+
+# The grid reported by threshold_sensitivity(). Prespecifying these prevents
+# picking the combination that produces the most findings after the fact.
+PREVALENCE_GRID = [10.0, 15.0, 20.0]
+CHANGE_GRID = [5.0, 10.0, 15.0]
+
+
+def threshold_sensitivity(con, role, curriculum=None, drift_result=None):
+    """Which recommendations survive across plausible decision thresholds.
+
+    15% prevalence and +5pp change are OUR rules, not facts about the labour
+    market. Prespecification stops opportunism but does not make a threshold
+    substantively correct, so the honest move is to show what changes when the
+    rule changes -- and specifically WHICH actions persist, not merely how many
+    pass.
+
+    A competency appearing in every cell is robust to the threshold choice. One
+    appearing in a single cell is an artefact of where we drew the line.
+    """
+    cur = curriculum or load_curriculum()
+    d = drift_result or drift(con, role)
+    taught = set(cur["taught_skills"])
+
+    cells, persistence = [], {}
+    for pmin in PREVALENCE_GRID:
+        for cmin in CHANGE_GRID:
+            hits = [m["skill"] for m in d["skills"]
+                    if m["latest_share"] >= pmin
+                    and m["change_pp"] >= cmin
+                    and m["significant_adjusted"]
+                    and m["skill"] not in taught]
+            cells.append({"min_share_pct": pmin, "min_change_pp": cmin,
+                          "n": len(hits), "skills": sorted(hits)})
+            for h in hits:
+                persistence[h] = persistence.get(h, 0) + 1
+
+    n_cells = len(cells)
+    rows = [{"skill": k, "cells": v, "of": n_cells,
+             "robust": v == n_cells,
+             "latest_share": next((m["latest_share"] for m in d["skills"]
+                                   if m["skill"] == k), None)}
+            for k, v in persistence.items()]
+    rows.sort(key=lambda r: (-r["cells"], -(r["latest_share"] or 0)))
+    return {
+        "role": role,
+        "latest_quarter": d["latest_quarter"],
+        "latest_n": d["latest_n"],
+        "current_rule": {"min_share_pct": GAP_MIN_SHARE_PCT,
+                         "min_change_pp": TREND_DELTA_PP},
+        "grid": {"prevalence": PREVALENCE_GRID, "change": CHANGE_GRID},
+        "n_cells": n_cells,
+        "cells": cells,
+        "persistence": rows,
+        "n_robust": sum(1 for r in rows if r["robust"]),
     }
 
 
@@ -688,6 +822,8 @@ def curriculum_gap(con, role, curriculum=None, drift_result=None):
             "significant": s["significant"],
             "p_adjusted": s["p_adjusted"],
             "significant_adjusted": s["significant_adjusted"],
+            "p_fisher": s["p_fisher"],
+            "diff_ci95": s["diff_ci95"],
             "correction_family_size": s["correction_family_size"],
             "first_seen": s["first_seen"],
             "taught": s["skill"] in taught,

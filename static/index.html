@@ -174,6 +174,7 @@
     <button data-v="findings" class="on">Review findings</button>
     <button data-v="location">Location evidence</button>
     <button data-v="syllabus">Syllabus coverage</button>
+    <button data-v="terms">Unmapped terms</button>
     <button data-v="methods">Methods &amp; data</button>
   </nav>
 
@@ -197,6 +198,15 @@
           <th class="num">Change from baseline</th><th>Decision</th></tr></thead>
         <tbody></tbody></table></div>
       <button class="btn link" id="supMore"></button>
+    </div>
+
+    <div class="panel">
+      <div class="seclabel">Do these recommendations survive a different rule?</div>
+      <p class="note" id="sensNote"></p>
+      <div style="overflow-x:auto"><table id="sensTable">
+        <thead><tr><th>Competency</th><th class="num">Cells passed</th>
+          <th class="num">Latest prevalence</th><th>Robustness</th></tr></thead>
+        <tbody></tbody></table></div>
     </div>
 
     <div class="panel">
@@ -232,6 +242,20 @@
     </div>
   </section>
 
+  <!-- =========================== UNMAPPED TERMS =========================== -->
+  <section id="v-terms" hidden>
+    <div class="panel">
+      <div class="seclabel">Unmapped terms found in real postings</div>
+      <p class="note" id="termsNote"></p>
+      <div class="note" style="background:var(--warnbg);color:var(--warnink);
+           border:1px solid #E5C77A;border-radius:8px;padding:12px 14px" id="termsWarn"></div>
+      <div style="overflow-x:auto"><table id="termsTable">
+        <thead><tr><th>Candidate term</th><th class="num">Postings</th>
+          <th class="num">Employers</th><th>Example sentence</th></tr></thead>
+        <tbody></tbody></table></div>
+    </div>
+  </section>
+
   <!-- ============================= METHODS ============================= -->
   <section id="v-methods" hidden>
     <div class="panel">
@@ -259,7 +283,8 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
 const pct = v => (v == null ? "—" : v.toFixed(1) + "%");
 const pp  = v => (v >= 0 ? "+" : "") + v.toFixed(1) + " pp";
 
-let OV = null, F = null, FEAT = null, LOC = null, SYL = null, chart = null;
+let OV = null, F = null, FEAT = null, LOC = null, SYL = null, SENS = null,
+    TERMS = null, chart = null;
 let supAll = false, disAll = false, seq = 0;
 
 async function get(url){
@@ -319,7 +344,7 @@ async function boot(){
 function go(v){
   document.querySelectorAll("nav button").forEach(b =>
     b.classList.toggle("on", b.dataset.v === v));
-  ["findings","location","syllabus","methods"].forEach(k =>
+  ["findings","location","syllabus","terms","methods"].forEach(k =>
     $("#v-" + k).hidden = (k !== v));
   window.scrollTo(0,0);
 }
@@ -328,19 +353,21 @@ function go(v){
 async function load(){
   const my = ++seq, role = $("#role").value;
   try{
-    const [f, loc, syl] = await Promise.all([
+    const [f, loc, syl, sens] = await Promise.all([
       get(`/api/findings?role=${encodeURIComponent(role)}`),
       get(`/api/locations?role=${encodeURIComponent(role)}&country=India&top=3`),
-      get(`/api/obsolete?role=${encodeURIComponent(role)}`)
+      get(`/api/obsolete?role=${encodeURIComponent(role)}`),
+      get(`/api/sensitivity?role=${encodeURIComponent(role)}`)
     ]);
     if(my !== seq) return;
-    F = f; LOC = loc; SYL = syl; supAll = disAll = false;
+    F = f; LOC = loc; SYL = syl; SENS = sens; supAll = disAll = false;
     FEAT = f.featured_skill
       ? await get(`/api/finding?role=${encodeURIComponent(role)}&skill=${encodeURIComponent(f.featured_skill)}`)
       : null;
     if(my !== seq) return;
     $("#histWrap").style.display = "none";
-    drawHero(); drawDiscarded(); drawLists(); drawLocation(); drawSyllabus(); drawMethods();
+    drawHero(); drawDiscarded(); drawLists(); drawSensitivity();
+    drawLocation(); drawSyllabus(); drawMethods(); loadTerms();
   }catch(e){ fail(e.message); }
 }
 
@@ -396,7 +423,10 @@ function drawHero(){
         <button class="btn sec" id="heroSyl">Check syllabus mapping</button>
         <button class="btn link" id="heroHist">View history</button>
         <span class="tiny" style="font-size:14px">${esc(st.correction)}-adjusted p = ${st.p_adjusted}
-          (raw ${st.p_raw}, family of ${st.family_size}) &mdash; ${esc(st.decision)}</span>
+          (raw ${st.p_raw}, family of ${st.family_size}) &mdash; ${esc(st.decision)}
+          &middot; Fisher exact p = ${st.p_fisher}
+          &middot; change ${pp(st.diff_ci95 ? st.diff_ci95[0] : 0)} to
+          ${pp(st.diff_ci95 ? st.diff_ci95[1] : 0)} (95% Newcombe)</span>
       </div>
     </div>`;
   $("#heroEv").onclick = () => openDrawer(f.role, f.skill, f.latest_quarter);
@@ -506,6 +536,56 @@ async function showHistory(skill){
   $("#histWrap").scrollIntoView({behavior:"smooth", block:"start"});
 }
 
+/* ----------------------------------------------------- threshold sensitivity */
+/* 15% prevalence and +5pp are OUR rules, not facts about the labour market.
+   Prespecification stops opportunism but does not make a threshold correct, so
+   show which recommendations persist when the rule moves. A competency in every
+   cell is robust; one in a single cell is an artefact of where we drew the line. */
+function drawSensitivity(){
+  const S = SENS;
+  $("#sensNote").textContent =
+    `The current rule is prevalence ≥ ${S.current_rule.min_share_pct}% and change ≥ `
+    + `${S.current_rule.min_change_pp} pp. Re-running across ${S.n_cells} combinations `
+    + `(prevalence ${S.grid.prevalence.join("/")}%, change ${S.grid.change.join("/")} pp) `
+    + `gives ${S.n_robust} competencies that pass in EVERY cell. Those do not depend on `
+    + `where the line was drawn; anything passing in only a few cells does.`;
+  $("#sensTable tbody").innerHTML = S.persistence.length
+    ? S.persistence.map(r => `<tr>
+        <td><span class="skillname">${esc(r.skill)}</span></td>
+        <td class="num">${r.cells} of ${r.of}</td>
+        <td class="num">${pct(r.latest_share)}</td>
+        <td>${r.robust
+              ? '<span class="dec sup">robust to threshold choice</span>'
+              : '<span class="dec">depends on the threshold</span>'}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="tiny">No competency passed in any cell.</td></tr>`;
+}
+
+/* ------------------------------------------------------- unmapped terms */
+/* The dictionary is closed, so a term not in it is UNMEASURED, not absent from
+   demand. This is the discovery half: candidates for a human to adjudicate. It
+   is deliberately NOT wired into any count elsewhere on the site. */
+async function loadTerms(){
+  try{
+    TERMS = await get("/api/phrases?min_postings=3&min_employers=2&limit=40");
+  }catch(e){ return; }
+  const T = TERMS;
+  $("#termsNote").textContent =
+    `${T.n_candidates} phrases appear in at least ${T.min_postings} real postings from at `
+    + `least ${T.min_employers} different employers, and are absent from the `
+    + `${T.dictionary_size}-term dictionary. Scanned ${T.n_postings_scanned} real postings. `
+    + `Employer count matters more than posting count: ten copied adverts from one employer `
+    + `are one lead, not ten confirmations.`;
+  $("#termsWarn").textContent = T.note;
+  $("#termsTable tbody").innerHTML = T.candidates.length
+    ? T.candidates.map(r => `<tr>
+        <td><span class="skillname">${esc(r.phrase)}</span>
+            ${r.single_employer ? '<div class="sub2"><span class="flag">single-employer lead</span></div>' : ""}</td>
+        <td class="num">${r.postings}</td>
+        <td class="num">${r.employers}</td>
+        <td class="sub2">${esc((r.example || "").slice(0,180))}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="tiny">No candidates met the thresholds.</td></tr>`;
+}
+
 /* ------------------------------------------------------------- location */
 function drawLocation(){
   const mh = LOC.maharashtra || [], other = LOC.cities.filter(c => c.state !== "Maharashtra");
@@ -584,15 +664,22 @@ function drawMethods(){
       title rules; anything uncertain becomes "Other (unclassified)" rather than being forced into a
       bucket. Syllabus is ${esc(OV.curriculum.name)} (${esc(OV.curriculum.source)}) — a demonstration
       syllabus, not an ITI or NSQF qualification pack.`],
-    ["Statistics", `Two-proportion z-test, ${esc(c.method||"—")} correction across ${c.family_size||"—"} tested competencies, alpha ${F.criteria.alpha}.`,
+    ["Statistics", `Two-proportion z-test with a Fisher exact cross-check, ${esc(c.method||"—")} correction across ${c.family_size||"—"} tested competencies, alpha ${F.criteria.alpha}.`,
      `Baseline is POOLED across the first two observed quarters and compared with the latest quarter.
       Confidence intervals shown are 95% Wilson intervals for PREVALENCE, not for the change.
       Raw and adjusted p-values are both reported and never relabelled as each other:
       raw significant ${c.n_significant_raw}, adjusted significant ${c.n_significant_adjusted}.
       The correction assumes valid null p-values and independence; competencies co-occur within postings
       and the same employers recur across periods, so that assumption is not established here.
-      This is an improvement over raw p, not a warranty. The test as implemented is a normal
-      approximation, which is weakly calibrated at these sample sizes.`],
+      This is an improvement over raw p, not a warranty.
+      The primary test is a pooled two-proportion z-test, a normal approximation that is weakly
+      calibrated at these sample sizes: at n=25 with a competency near 5% prevalence the expected
+      cell counts fall to 1-3. A two-sided FISHER EXACT test is therefore reported alongside it as
+      a conservative cross-check (${c.n_significant_fisher != null ? c.n_significant_fisher : "—"}
+      of ${c.family_size||"—"} pass it uncorrected). Intervals for the CHANGE use Newcombe's
+      Wilson-based method; checking whether two prevalence intervals overlap is not a test of the
+      difference. None of these fix employer clustering or repeated observation of the same
+      employer: "exact" describes a calculation under a model, not validity for a labour market.`],
     ["Limits", `What this evidence cannot establish.`,
      `A statistically supported change in ADVERTISED wording is not evidence that a course change would
       improve employment. An absent syllabus keyword does not prove an untaught competency: it may be
