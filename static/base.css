@@ -1,0 +1,137 @@
+/* ===========================================================================
+   base.css -- palette, typography and shared components for all three pages.
+
+   Lives in one file so the landing page, the dashboard and the method page
+   cannot drift apart. Page-specific rules stay in each page's own <style>,
+   which is loaded AFTER this file and therefore wins where it overlaps.
+
+   NO WEBFONTS. The venue Wi-Fi is shared by ~50 teams and every page must
+   render with the network off, so this uses only faces that ship with the
+   operating system.
+
+   THE TYPE CHOICE, and why it is not the usual system stack:
+
+   Sitka is Matthew Carter's family for Microsoft, drawn specifically for
+   reading on screen and cut at several optical sizes -- Sitka Banner for
+   headlines, Sitka Text for running prose. It ships with Windows, so it costs
+   nothing to use and needs no network. It is used here for everything a person
+   READS, because the neutral UI sans that Windows defaults to (Segoe UI) makes
+   a page of argument look like a settings dialog.
+
+   The sans is kept for everything a person SCANS rather than reads: numbers,
+   tables, labels, buttons, form controls. That split is the whole system --
+   serif for prose, sans for data -- and it is what makes the pages read as a
+   publication rather than an app template.
+
+   Fallbacks, in order, degrade to Constantia (Windows), then Georgia and
+   Palatino (everywhere), so a Mac or Linux judge still gets a text face.
+   =========================================================================== */
+
+:root{
+  /* Warm brown on cream. Chosen for a projector: a warm ground holds contrast
+     in a bright room better than cool grey, and the accent stays dark enough
+     to read from the back of the hall. */
+  --page:#F7F3EC; --panel:#FFFDFA; --ink:#241B12; --ink2:#5F4B39;
+  --rule:#E0D3C2; --rule2:#CDBBA4;
+  --action:#7C4A21; --action2:#9A6234; --actionbg:#F4E9DD;
+  --warnbg:#FBEFD2; --warnink:#6B4708;
+  --neutral:#8A7663; --neutralbg:#F2EBE1;
+  --good:#3F6B4A; --goodbg:#E8F0E6;
+  --miss:#A5553C; --missbg:#F6E7E2;
+  --note:#F2E9DA; --noterule:#D8C4A6;
+
+  --serif:"Sitka Banner","Sitka Display","Sitka Text",Constantia,
+          "Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --text:"Sitka Text",Constantia,Georgia,"Palatino Linotype",Palatino,
+         "Times New Roman",serif;
+  --sans:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,
+         "Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,SFMono-Regular,Menlo,monospace;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+
+body{
+  background:var(--page);
+  color:var(--ink);
+  font:19px/1.6 var(--text);
+  /* LINING figures, deliberately. Sitka defaults to old-style numerals, which
+     are correct in running prose but wrong for a headline statistic: they gave
+     "48.0%" varying letter-heights and a descending 4, which reads as decorative
+     on the one element that must read as exact. Tabular so columns align. */
+  font-variant-numeric:lining-nums tabular-nums;
+  font-feature-settings:"lnum" 1,"tnum" 1;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* Headlines: the display cut, set tight. Large sizes need negative tracking or
+   they look loose; small ones do not. */
+h1,h2,h3,.seclabel,.fig-h{font-family:var(--serif);font-weight:600;margin:0;
+                          letter-spacing:-.012em}
+h1{font-size:clamp(34px,4.2vw,52px);line-height:1.04;letter-spacing:-.022em}
+h2{font-size:27px;line-height:1.2}
+h3{font-size:21px;line-height:1.25}
+
+/* Anything scanned rather than read stays in the sans, with lining figures
+   that align in a column. */
+.sans,table,button,select,input,.kicker,.tag,.dec,.flag,.n .k,.n .s,
+.kpi,.crumbs,.toc,.fig-key,.fig-src,.lbl,th,td,.num{font-family:var(--sans)}
+
+.kicker{font-family:var(--sans);font-size:13px;letter-spacing:.15em;
+        font-weight:700;color:var(--action);text-transform:uppercase}
+
+/* Measure: prose past ~42em is measurably harder to read, whatever the size. */
+p{margin:15px 0;max-width:42em}
+.lede{font-size:23px;line-height:1.5;max-width:38em;color:var(--ink)}
+.small{font-size:16px;line-height:1.5;color:var(--ink2)}
+a{color:var(--action);text-underline-offset:2px}
+
+/* ------------------------------------------------------------------ links */
+.btn{display:inline-block;font-family:var(--sans);font-weight:600;
+     border:1px solid var(--action);border-radius:8px;padding:11px 20px;
+     font-size:17px;text-decoration:none;cursor:pointer;
+     background:var(--panel);color:var(--action)}
+.btn.primary{background:var(--action);color:#FFF8F0;border-color:var(--action)}
+.btn:hover{background:var(--actionbg)}
+.btn.primary:hover{background:var(--action2)}
+
+/* ------------------------------------------------------- the data note ---
+   This is a PROVENANCE DISCLOSURE, not an alert. It was previously set in
+   warning yellow across the full width, which made the first thing on the page
+   read as an error -- the opposite of the intended effect, since disclosing
+   the synthetic/real split is meant to build trust, not signal a fault.
+
+   So it is styled as a publication's data note: parchment ground, a brown
+   rule, and a standing label, in the manner of the "Official statistics in
+   development" banners used on UK government statistical releases. It stays
+   first on the page and stays undismissible -- honesty rule 3 requires the
+   label wherever synthetic data surfaces. Only the tone changes.             */
+#prov{background:var(--note);border-bottom:1px solid var(--noterule);
+      padding:13px 28px;color:var(--ink)}
+#prov .inner{max-width:1120px;margin:0 auto;display:flex;gap:18px;
+             align-items:baseline;flex-wrap:wrap}
+#prov .tagword{font-family:var(--sans);font-size:11.5px;letter-spacing:.14em;
+      text-transform:uppercase;font-weight:700;color:#FFF8F0;
+      background:var(--action);border-radius:3px;padding:4px 9px;
+      white-space:nowrap;flex:none}
+#prov .body{font-size:16.5px;line-height:1.45;flex:1 1 380px;min-width:0}
+#prov b{font-weight:600}
+
+/* ------------------------------------------------------------ containers */
+.panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+       padding:20px 22px}
+.seclabel{font-size:26px;padding-bottom:9px;border-bottom:2px solid var(--rule2);
+          margin-bottom:10px}
+.seclabel::before{content:"";display:inline-block;width:5px;height:20px;
+          background:var(--action);margin-right:12px;vertical-align:-3px;
+          border-radius:2px}
+
+/* Every large display number, wherever it appears. */
+.big,.heroSkill,.n .v,.kpi .v,.fig-h{font-variant-numeric:lining-nums tabular-nums;
+       font-feature-settings:"lnum" 1,"tnum" 1}
+
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--rule);
+       font-family:var(--sans);font-size:15px;color:var(--ink2)}
+.err{color:#8A2B18}
