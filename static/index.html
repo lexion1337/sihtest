@@ -5,1084 +5,688 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Skill Drift Analyzer</title>
 <!-- Chart.js 4.4.1 vendored locally. Do NOT replace with a CDN link: the venue
-     Wi-Fi is shared by ~50 teams and this page must render with no internet. -->
+     Wi-Fi is shared by ~50 teams and this page must render with no internet.
+     No webfonts, no external host of any kind. -->
 <script src="/static/chart.umd.min.js"></script>
 <style>
-  /* Light palette, chosen for projector legibility rather than taste. A
-     near-black UI loses panel separation in a bright room on a weak beamer. */
-  /* Warm brown-on-cream. Chosen for a projector: a warm ground holds
-     contrast in a bright room better than cool grey, and the accent stays
-     dark enough to read from the back of the hall. */
+  /* Same warm brown-on-cream system as the dashboard. System faces only. */
   :root{
     --page:#F7F3EC; --panel:#FFFDFA; --ink:#2B2118; --ink2:#5F4B39;
     --rule:#E0D3C2; --rule2:#CDBBA4;
     --action:#7C4A21; --action2:#9A6234; --actionbg:#F4E9DD;
     --warnbg:#FBEFD2; --warnink:#6B4708;
-    --neutral:#8A7663; --neutralbg:#F2EBE1;
     --good:#3F6B4A; --goodbg:#E8F0E6;
-    --c1:#7C4A21; --c2:#9A6234; --c3:#B98A5B; --c4:#5F4B39;
-    --c5:#3F6B4A; --c6:#8A6A8A; --c7:#A5553C;
+    --miss:#A5553C; --missbg:#F6E7E2;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  /* No webfonts: the page must render with the network off, so this uses
-     system faces only. A serif for headings and a sans for body gives real
-     typographic contrast at zero network cost. */
-  body{background:var(--page);color:var(--ink);line-height:1.5;
-       font:20px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+  body{background:var(--page);color:var(--ink);
+       font:20px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
             "Helvetica Neue",Arial,sans-serif;
-       font-variant-numeric:tabular-nums;
-       -webkit-font-smoothing:antialiased}
-  .serif,h1,h2,h3,.seclabel,.heroSkill,.big{
-       font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,
-                   "Times New Roman",serif}
-  .wrap{max-width:1240px;margin:0 auto;padding:0 32px 64px}
-  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
-  h1{font-size:30px;line-height:1.15}
+       font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,
+       Georgia,"Times New Roman",serif}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
   a{color:var(--action)}
-  button{font:inherit}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px 72px}
+  section{margin-top:52px}
+  .lede{font-size:23px;line-height:1.5;max-width:46em}
+  p{margin:14px 0}
+  .small{font-size:16px;line-height:1.45;color:var(--ink2)}
 
-  /* ---------- persistent provenance banner: never dismissible ---------- */
-  #banner{background:var(--warnbg);color:var(--warnink);padding:8px 32px;
-          font-size:16px;line-height:1.3;border-bottom:2px solid #E3C78A}
-  #banner .inner{max-width:1240px;margin:0 auto;display:flex;gap:24px;
-                 align-items:flex-start;justify-content:space-between}
-  #banner .l1{font-weight:600}
-  #banner .l2{font-weight:400}
-  #banner button{background:none;border:1px solid var(--warnink);color:var(--warnink);
-                 border-radius:8px;padding:5px 12px;font-size:15px;cursor:pointer;
-                 white-space:nowrap}
+  /* ------ provenance strip: plain words, on every page, never dismissible --- */
+  #prov{background:var(--warnbg);color:var(--warnink);padding:9px 28px;
+        font-size:16px;line-height:1.35;border-bottom:2px solid #E3C78A}
+  #prov .inner{max-width:1120px;margin:0 auto}
 
-  /* ---------------------------- header ---------------------------- */
-  header{padding:10px 0 8px;display:flex;gap:24px;align-items:flex-end;
-         justify-content:space-between;flex-wrap:wrap}
-  header .sub{color:var(--ink2);font-size:16px;margin-top:1px}
-  header .syl{color:var(--ink2);font-size:14px;margin-top:2px}
-  label{display:block;font-size:14px;color:var(--ink2);margin-bottom:4px}
-  select{font:inherit;font-size:17px;padding:7px 11px;border:1px solid var(--rule);
-         border-radius:8px;background:var(--panel);color:var(--ink);min-width:260px}
+  /* ------------------------------- masthead ------------------------------- */
+  header{padding:34px 0 0}
+  .kicker{font-size:14px;letter-spacing:.14em;font-weight:700;color:var(--action);
+          text-transform:uppercase}
+  h1{font-size:46px;line-height:1.08;margin:10px 0 12px}
+  .topnav{margin-top:26px;display:flex;gap:12px;flex-wrap:wrap}
 
-  /* ------------------------------ nav ------------------------------ */
-  nav{display:flex;gap:6px;border-bottom:1px solid var(--rule);margin-bottom:14px}
-  nav button{background:none;border:0;border-bottom:3px solid transparent;
-             padding:8px 13px;font-size:17px;color:var(--ink2);cursor:pointer}
-  nav button.on{color:var(--action);border-bottom-color:var(--action);font-weight:700}
-  nav button:hover{color:var(--action)}
+  .btn{display:inline-block;border:1px solid var(--action);border-radius:8px;
+       padding:11px 20px;font-size:18px;text-decoration:none;cursor:pointer;
+       background:var(--panel);color:var(--action);font-weight:600}
+  .btn.primary{background:var(--action);color:#FFF8F0;border-color:var(--action)}
+  .btn:hover{background:var(--actionbg)}
+  .btn.primary:hover{background:var(--action2)}
 
-  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
-         padding:14px 20px;margin-bottom:8px}
-  .seclabel{font-size:25px;font-weight:600;margin:0 0 10px;padding-bottom:8px;
-            border-bottom:2px solid var(--rule2);letter-spacing:-.01em}
-  .seclabel::before{content:"";display:inline-block;width:5px;height:20px;
+  /* --------------------------- three-second image -------------------------- */
+  /* Two documents, side by side, and the skill that is in one and not the
+     other. This is the whole project in one picture. */
+  .image{display:grid;grid-template-columns:1fr 92px 1fr;align-items:stretch;
+         margin-top:22px}
+  .doc{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+       padding:20px 22px;min-height:230px}
+  .doc .lbl{font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+            font-weight:700;color:var(--ink2)}
+  .doc h3{font-size:22px;margin:8px 0 2px}
+  .doc .meta{font-size:15px;color:var(--ink2);line-height:1.45}
+  .quote{margin-top:14px;font-size:17px;line-height:1.5;
+         border-left:3px solid var(--rule2);padding-left:14px;color:var(--ink)}
+  .hit{background:#F3DFC9;border-bottom:2px solid var(--action);font-weight:600;
+       padding:0 2px}
+  .lines{margin-top:14px}
+  .lines div{font-size:16px;padding:5px 0;border-bottom:1px dashed var(--rule);
+             color:var(--ink2)}
+  .lines div.no{color:var(--miss);font-weight:600}
+  .bridge{display:flex;flex-direction:column;align-items:center;
+          justify-content:center;text-align:center;padding:0 6px}
+  .bridge .gapword{font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+                   font-weight:700;color:var(--miss);margin-top:6px}
+  .bridge .arrow{font-size:30px;color:var(--rule2);line-height:1}
+  .imgcap{margin-top:14px;font-size:17px;color:var(--ink2);max-width:60em}
+
+  /* ------------------------------- numbers -------------------------------- */
+  .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+  .n{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+     padding:18px 20px;border-top:4px solid var(--action)}
+  .n .v{font-size:42px;font-weight:600;line-height:1.05;color:var(--action);
+        font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .n .k{font-size:17px;font-weight:600;margin-top:6px}
+  .n .s{font-size:15px;color:var(--ink2);margin-top:4px;line-height:1.4}
+
+  /* --------------------------------- chart -------------------------------- */
+  /* Built to the UK Government Analysis Function conventions for statistical
+     charts, because the audience is a government department: a headline that
+     states the message, a statistical subtitle saying what the data is and
+     which period it covers, a source line, light gridlines, horizontal text,
+     and never colour on its own to carry meaning -- every bar is labelled in
+     words as well. An accessible data table sits underneath. */
+  .figure{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+          padding:22px 24px;margin-top:18px}
+  .fig-h{font-size:22px;font-weight:600;line-height:1.25;
+         font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .fig-sub{font-size:16px;color:var(--ink2);margin-top:5px;line-height:1.4}
+  .fig-box{position:relative;height:340px;margin-top:18px}
+  .fig-src{font-size:14px;color:var(--ink2);margin-top:14px;padding-top:10px;
+           border-top:1px solid var(--rule)}
+  .fig-key{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:15px;
+           color:var(--ink2)}
+  .fig-key span{display:flex;align-items:center;gap:7px}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+  details.data{margin-top:12px;font-size:16px}
+  details.data summary{cursor:pointer;color:var(--action);font-weight:600}
+  details.data table{border-collapse:collapse;width:100%;margin-top:10px;font-size:16px}
+  details.data th{text-align:left;font-size:13px;letter-spacing:.04em;
+       text-transform:uppercase;color:var(--ink2);padding:8px;
+       border-bottom:2px solid var(--rule2)}
+  details.data td{padding:7px 8px;border-bottom:1px solid var(--rule)}
+  details.data td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+  /* ----------------------------- role explorer ---------------------------- */
+  .search{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .search input{font:inherit;font-size:18px;padding:11px 14px;
+                border:1px solid var(--rule2);border-radius:8px;
+                background:var(--panel);color:var(--ink);min-width:320px}
+  .search input:focus{outline:2px solid var(--action);outline-offset:1px}
+  .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+         gap:12px;margin-top:16px}
+  .chip{display:block;text-align:left;background:var(--panel);
+        border:1px solid var(--rule);border-left:5px solid var(--action);
+        border-radius:8px;padding:14px 16px;cursor:pointer;text-decoration:none;
+        color:inherit;font:inherit}
+  .chip:hover{background:var(--actionbg)}
+  .chip .r{font-size:19px;font-weight:600}
+  .chip .d{font-size:15px;color:var(--ink2);margin-top:3px}
+  .chip[hidden]{display:none}
+  .nohit{font-size:17px;color:var(--ink2);margin-top:12px}
+
+  /* ------------------------------ how it works ---------------------------- */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+  .step{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+        padding:16px 18px}
+  .step .i{font-size:13px;letter-spacing:.1em;font-weight:700;color:var(--action);
+           text-transform:uppercase}
+  .step h3{font-size:19px;margin:6px 0 4px}
+  .step p{font-size:16px;color:var(--ink2);margin:0;line-height:1.45}
+
+  /* -------------------------------- boxes --------------------------------- */
+  .box{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+       padding:22px 24px}
+  .box.limits{border-left:5px solid var(--warnink);background:#FDF6E7}
+  .box.rigour{border-left:5px solid var(--good);background:var(--goodbg)}
+  .box h2{font-size:24px}
+  .box ul{margin:12px 0 0;padding-left:22px}
+  .box li{margin:8px 0;font-size:17px;line-height:1.5}
+  .seclabel{font-size:27px;font-weight:600;padding-bottom:9px;
+            border-bottom:2px solid var(--rule2);margin-bottom:6px;
+            font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .seclabel::before{content:"";display:inline-block;width:5px;height:21px;
             background:var(--action);margin-right:12px;vertical-align:-3px;
             border-radius:2px}
-  .note{color:var(--ink2);font-size:18px;margin:0 0 16px}
-  .tiny{font-size:16px;color:var(--ink2)}
-
-  /* ---------------------------- the hero ---------------------------- */
-  #hero{min-height:0;display:flex;flex-direction:column;justify-content:space-between}
-  .kicker{font-size:15px;letter-spacing:.13em;font-weight:700;color:var(--action);
-          text-transform:uppercase}
-  .heroTop{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin:4px 0 10px}
-  .heroSkill{font-size:44px;font-weight:600;line-height:1.05;letter-spacing:-.02em}
-  .prov{font-size:16px;padding:5px 12px;border-radius:8px;border:1px solid var(--rule);
-        color:var(--ink2);background:var(--neutralbg);white-space:nowrap}
-  .prov.synthetic{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
-  .prov.mixed{background:var(--warnbg);color:var(--warnink);border-color:#E5C77A}
-  .prov.real{background:var(--goodbg);color:var(--good);border-color:#BBD0BB}
-  .cols{display:flex;gap:28px;align-items:stretch}
-  .col{flex:1;min-width:0}
-  .col.right{border-left:1px solid var(--rule);padding-left:28px}
-  .colhead{font-size:15px;color:var(--ink2);margin-bottom:4px}
-  .big{font-size:64px;font-weight:600;line-height:1;display:inline-block;
-       vertical-align:baseline;letter-spacing:-.025em;color:var(--action)}
-  .beside{font-size:24px;color:var(--ink2);margin-left:14px}
-  .under{font-size:16px;color:var(--ink2);margin-top:4px}
-  .actionband{background:var(--actionbg);border:1px solid var(--rule2);
-              border-left:5px solid var(--action);border-radius:8px;
-              padding:12px 16px;margin-top:12px}
-  .actionband .do{font-size:18px}
-  .actionband .bound{font-size:14px;color:var(--ink2);margin-top:4px}
-  .btnrow{margin-top:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-  .btn{background:var(--action);color:#fff;border:0;border-radius:8px;
-       padding:9px 16px;font-size:16px;cursor:pointer}
-  .btn.sec{background:none;color:var(--action);border:1px solid var(--action)}
-  .btn.link{background:none;color:var(--action);border:0;text-decoration:underline;
-            padding:8px 0}
-
-  /* ------------------------ discarded strip ------------------------ */
-  #disc{border-left:4px solid var(--neutral);background:var(--neutralbg);padding:10px 16px}
-  #disc .kicker{color:var(--neutral)}
-  #disc .line{font-size:20px;margin:4px 0 3px}
-  #disc .why{font-size:15px;color:var(--ink2)}
-
-  /* ------------------------------ tables ------------------------------ */
-  table{width:100%;border-collapse:collapse;font-size:18px}
-  th{text-align:left;font-size:15px;color:var(--ink2);font-weight:700;
-     padding:12px 12px;border-bottom:2px solid var(--rule2);white-space:nowrap;
-     letter-spacing:.04em;text-transform:uppercase}
-  td{padding:14px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
-  tbody tr{min-height:52px}
-  tbody tr.click{cursor:pointer}
-  tbody tr.click:hover{background:var(--actionbg)}
-  .num{text-align:right;white-space:nowrap}
-  .skillname{font-weight:600}
-  .sub2{font-size:16px;color:var(--ink2);margin-top:3px}
-  .flag{display:inline-block;font-size:16px;padding:3px 10px;border-radius:8px;
-        background:var(--warnbg);color:var(--warnink);white-space:nowrap}
-  .dec{display:inline-block;font-size:16px;padding:4px 12px;border-radius:8px;
-       border:1px solid var(--rule);background:var(--neutralbg);color:var(--ink2)}
-  .dec.sup{background:var(--actionbg);border-color:var(--rule2);color:var(--action);
-           font-weight:700}
-
-  /* ------------------------------ chart ------------------------------ */
-  #histWrap{display:none}
-  .chartbox{position:relative;height:240px}
-  #nrow{display:flex;font-size:16px;color:var(--ink2);margin-top:6px}
-  #nrow span{flex:1;text-align:center}
-
-  /* --------------------------- statistics --------------------------- */
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
-        gap:16px}
-  .cardchart{background:var(--panel);border:1px solid var(--rule);
-             border-radius:8px;padding:18px 20px}
-  .cardchart h3{font-size:20px;margin-bottom:4px}
-  .cardchart .cap{font-size:15px;color:var(--ink2);margin:0 0 12px}
-  .cardchart .box{position:relative;height:250px}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-        gap:14px;margin-bottom:18px}
-  .kpi{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
-       padding:16px 18px;border-top:4px solid var(--action)}
-  .kpi .k{font-size:14px;letter-spacing:.07em;text-transform:uppercase;
-          color:var(--ink2);font-weight:700}
-  .kpi .v{font-size:38px;font-weight:600;line-height:1.1;margin-top:4px;
-          color:var(--action);
-          font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
-  .kpi .n{font-size:15px;color:var(--ink2);margin-top:4px}
-
-  /* ------------------------------ drawer ------------------------------ */
-  #drawer{position:fixed;inset:0;background:rgba(17,24,39,.45);display:none;z-index:100}
-  #drawer.open{display:block}
-  #dpanel{position:absolute;right:0;top:0;bottom:0;width:min(640px,100vw);
-          background:var(--panel);border-left:1px solid var(--rule);
-          overflow-y:auto;padding:28px}
-  #dclose{position:absolute;right:20px;top:18px;background:none;border:1px solid var(--rule);
-          border-radius:8px;font-size:18px;padding:6px 14px;cursor:pointer}
-  .filters{display:flex;gap:10px;margin:18px 0}
-  .filters button{border:1px solid var(--rule);background:var(--panel);border-radius:8px;
-                  padding:10px 16px;font-size:16px;cursor:pointer;color:var(--ink2)}
-  .filters button.on{border-color:var(--action);color:var(--action);font-weight:700;
-                     background:var(--actionbg)}
-  .rec{border:1px solid var(--rule);border-radius:8px;padding:16px;margin-bottom:12px}
-  .rec .t{font-weight:600;font-size:18px}
-  .rec .m{font-size:16px;color:var(--ink2);margin-top:4px}
-  .rec mark{background:#FFF3CD;padding:1px 3px}
-  .rec pre{white-space:pre-wrap;font:15px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-           background:var(--neutralbg);border:1px solid var(--rule);border-radius:8px;
-           padding:12px;margin-top:10px;max-height:320px;overflow:auto}
-  .synthtag{display:inline-block;font-size:14px;letter-spacing:.06em;font-weight:600;
-            background:var(--warnbg);color:var(--warnink);padding:3px 9px;border-radius:8px}
-
-  /* ------------------------------ methods ------------------------------ */
-  details.m{border:1px solid var(--rule);border-radius:8px;margin-bottom:12px;
-            background:var(--panel)}
-  details.m>summary{padding:16px 18px;cursor:pointer;font-size:18px}
-  details.m>summary b{font-weight:600}
-  details.m .body{padding:0 18px 18px;font-size:18px;color:var(--ink2)}
-  .err{color:#B3261E}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--rule);
+         font-size:15px;color:var(--ink2)}
+  .err{color:#8A2B18}
+  @media (max-width:860px){
+    .image{grid-template-columns:1fr}
+    .bridge{padding:14px 0}
+    h1{font-size:34px}
+  }
 </style>
 </head>
 <body>
 
-<div id="banner"><div class="inner">
-  <div>
-    <div class="l1" id="bl1">Loading corpus composition…</div>
-    <div class="l2" id="bl2"></div>
-  </div>
-  <button id="bcomp">View composition</button>
-</div></div>
+<!-- Honesty rule 3: synthetic data is labelled everywhere it surfaces, and here
+     it is said in words a non-technical reader can act on. -->
+<div id="prov"><div class="inner" id="provText">Loading the data description...</div></div>
 
 <div class="wrap">
-  <header>
-    <div>
-      <h1>Skill Drift Analyzer</h1>
-      <div class="sub">Evidence for curriculum review</div>
-      <div class="syl" id="sylId"></div>
-    </div>
-    <div>
-      <label for="role">Occupation</label>
-      <select id="role"></select>
-    </div>
-  </header>
+<header>
+  <div class="kicker">Smart India Hackathon 2026 &middot; SIH26134 &middot; Government of Maharashtra</div>
+  <h1>Skill Drift Analyzer</h1>
+  <p class="lede">Job requirements change every few months. Course syllabi change
+    every few years. Nobody measures the gap between them, so nobody can close it.
+    <b>We measure it.</b></p>
+  <div class="topnav">
+    <a class="btn primary" href="/dashboard">See the evidence &rarr;</a>
+    <a class="btn" href="/method">How we checked &rarr;</a>
+  </div>
+</header>
 
-  <nav>
-    <button data-v="findings" class="on">Review findings</button>
-    <button data-v="location">Location evidence</button>
-    <button data-v="syllabus">Syllabus coverage</button>
-    <button data-v="stats">Statistics</button>
-    <button data-v="terms">Unmapped terms</button>
-    <button data-v="methods">Methods &amp; data</button>
-  </nav>
-
-  <!-- ============================ FINDINGS ============================ -->
-  <section id="v-findings">
-    <div class="panel" id="hero"></div>
-    <div class="panel" id="disc"></div>
-
-    <div class="panel" id="histWrap">
-      <div class="seclabel" id="histTitle">History</div>
-      <p class="note" id="histNote"></p>
-      <div class="chartbox"><canvas id="chart"></canvas></div>
-      <div id="nrow"></div>
+<!-- ===================== THE THREE-SECOND IMAGE ===================== -->
+<section>
+  <div class="seclabel">What we found, in one picture</div>
+  <div class="image" id="image">
+    <div class="doc" id="docAd"><div class="lbl">A job advertisement</div>
+      <p class="small">Loading...</p></div>
+    <div class="bridge">
+      <div class="arrow">&harr;</div>
+      <div class="gapword" id="bridgeWord">the gap</div>
     </div>
+    <div class="doc" id="docSyl"><div class="lbl">The course syllabus</div>
+      <p class="small">Loading...</p></div>
+  </div>
+  <p class="imgcap" id="imgCap"></p>
+</section>
 
-    <div class="panel">
-      <div class="seclabel" id="supTitle">Supported drift alerts</div>
-      <p class="note" id="supNote"></p>
-      <div style="overflow-x:auto"><table id="supTable">
-        <thead><tr><th>Competency</th><th class="num">Latest prevalence</th>
-          <th class="num">Change from baseline</th><th>Decision</th></tr></thead>
-        <tbody></tbody></table></div>
-      <button class="btn link" id="supMore"></button>
-    </div>
+<!-- ============================ THE PROBLEM ============================ -->
+<section>
+  <div class="seclabel">The problem</div>
+  <p class="lede">One job opening now draws thousands of applicants within an hour,
+    and not one of them is told which specific skill they were missing.</p>
+  <p class="lede">Training programmes and college syllabi are revised on multi-year
+    cycles. What employers ask for moves every few months.</p>
+  <p class="lede">So the shortage is not of training. It is of <b>information</b> —
+    nobody is measuring which skills demand has moved to, which means course
+    updates are guesswork.</p>
+</section>
 
-    <div class="panel">
-      <div class="seclabel">Do these recommendations survive a different rule?</div>
-      <p class="note" id="sensNote"></p>
-      <div style="overflow-x:auto"><table id="sensTable">
-        <thead><tr><th>Competency</th><th class="num">Cells passed</th>
-          <th class="num">Latest prevalence</th><th>Robustness</th></tr></thead>
-        <tbody></tbody></table></div>
-    </div>
+<!-- ============================== AUDIENCE ============================== -->
+<section>
+  <div class="box">
+    <h2>Who this is built for</h2>
+    <p>A <b>state skills department deciding which courses to update</b> — someone
+      who has to choose where next year's training budget goes, and needs a
+      defensible reason for the choice.</p>
+    <p class="small">It is deliberately not career advice for an individual
+      student. A percentage measured across hundreds of job ads says what the
+      market asks for; it cannot tell one person what to do next.</p>
+  </div>
+</section>
 
-    <div class="panel">
-      <div class="seclabel" id="disTitle">Discarded drift alerts</div>
-      <p class="note">Observed prevalence is real; the evidence of <i>change</i> did not
-        survive the decision rule. Failure to reject is not evidence of no change.</p>
-      <div style="overflow-x:auto"><table id="disTable">
-        <thead><tr><th>Competency</th><th class="num">Latest prevalence</th>
-          <th class="num">Change from baseline</th><th>Decision</th></tr></thead>
-        <tbody></tbody></table></div>
-      <button class="btn link" id="disMore"></button>
-    </div>
-  </section>
+<!-- ============================== NUMBERS =============================== -->
+<section>
+  <div class="seclabel">What is in the system right now</div>
+  <p class="small">These are read live from the running database every time this
+    page loads. Nothing here is typed in by hand.</p>
+  <div class="nums" id="nums"></div>
+</section>
 
-  <!-- ============================ LOCATION ============================ -->
-  <section id="v-location" hidden>
-    <div class="panel">
-      <div class="seclabel">Advertised workplace locations</div>
-      <p class="note" id="locNote"></p>
-      <div style="overflow-x:auto"><table id="locTable">
-        <thead><tr><th>Location</th><th class="num">Postings</th>
-          <th>Most-mentioned competencies</th></tr></thead>
-        <tbody></tbody></table></div>
+<!-- =============================== FIGURE =============================== -->
+<section>
+  <div class="seclabel">What employers asked for</div>
+  <div class="figure">
+    <div class="fig-h" id="figH">Loading...</div>
+    <div class="fig-sub" id="figSub"></div>
+    <div class="fig-key">
+      <span><i class="sw" style="background:#A5553C"></i> Not taught by the syllabus</span>
+      <span><i class="sw" style="background:#C9AE8C"></i> Taught by the syllabus</span>
     </div>
-  </section>
+    <div class="fig-box"><canvas id="figChart"></canvas></div>
+    <details class="data">
+      <summary>Show these numbers as a table</summary>
+      <table id="figTable"><thead><tr><th>Skill</th>
+        <th class="num">Job ads asking for it</th><th class="num">Share</th>
+        <th>In the syllabus?</th></tr></thead><tbody></tbody></table>
+    </details>
+    <div class="fig-src" id="figSrc"></div>
+  </div>
+</section>
 
-  <!-- ============================ SYLLABUS ============================ -->
-  <section id="v-syllabus" hidden>
-    <div class="panel">
-      <div class="seclabel">Teaching coverage to review</div>
-      <p class="note" id="sylNote"></p>
-      <div id="sylGroups"></div>
-    </div>
-  </section>
+<!-- =========================== ROLE EXPLORER ============================ -->
+<section>
+  <div class="seclabel">Look up a job role</div>
+  <p>Pick a role to see which skills employers asked for, and which of those the
+    syllabus does not teach.</p>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search a role, e.g. Data Analyst"
+           autocomplete="off" aria-label="Search a job role">
+  </div>
+  <div class="chips" id="chips"></div>
+  <p class="nohit" id="noHit" hidden></p>
+  <p class="small" id="roleNote"></p>
+</section>
 
-  <!-- ============================ STATISTICS ============================ -->
-  <section id="v-stats" hidden>
-    <div class="panel">
-      <div class="seclabel">Corpus statistics</div>
-      <p class="note" id="statsNote"></p>
-      <div class="note" id="statsWarn"></div>
-      <div class="kpis" id="kpis"></div>
-      <div class="grid">
-        <div class="cardchart"><h3>Where the corpus comes from</h3>
-          <p class="cap" id="capSrc"></p><div class="box"><canvas id="chSrc"></canvas></div></div>
-        <div class="cardchart"><h3>Postings per quarter</h3>
-          <p class="cap" id="capQ"></p><div class="box"><canvas id="chQ"></canvas></div></div>
-        <div class="cardchart"><h3>Most-requested competencies</h3>
-          <p class="cap" id="capTop"></p><div class="box"><canvas id="chTop"></canvas></div></div>
-        <div class="cardchart"><h3>Decision outcomes</h3>
-          <p class="cap" id="capDec"></p><div class="box"><canvas id="chDec"></canvas></div></div>
-        <div class="cardchart"><h3>Collection funnel</h3>
-          <p class="cap" id="capYield"></p><div class="box"><canvas id="chYield"></canvas></div></div>
-        <div class="cardchart"><h3>Indian cities by posting count</h3>
-          <p class="cap" id="capCity"></p><div class="box"><canvas id="chCity"></canvas></div></div>
-      </div>
-    </div>
-  </section>
+<!-- ============================ HOW IT WORKS ============================ -->
+<section>
+  <div class="seclabel">How it works</div>
+  <div class="steps">
+    <div class="step"><div class="i">Step 1</div><h3>Collect job ads</h3>
+      <p>We pull real job advertisements from public company hiring pages and
+        keep the full text of every one.</p></div>
+    <div class="step"><div class="i">Step 2</div><h3>Find the skills</h3>
+      <p>Each ad is scanned for a fixed list of skills. The same rule runs on
+        every ad, so no two ads are treated differently.</p></div>
+    <div class="step"><div class="i">Step 3</div><h3>Compare with the syllabus</h3>
+      <p>We line the skills employers asked for up against what the course
+        actually teaches.</p></div>
+    <div class="step"><div class="i">Step 4</div><h3>Show what is missing</h3>
+      <p>Anything in demand and not taught is reported — with the number of job
+        ads behind it, and a link to read those ads yourself.</p></div>
+  </div>
+</section>
 
-  <!-- =========================== UNMAPPED TERMS =========================== -->
-  <section id="v-terms" hidden>
-    <div class="panel">
-      <div class="seclabel">Unmapped terms found in real postings</div>
-      <p class="note" id="termsNote"></p>
-      <div class="note" style="background:var(--warnbg);color:var(--warnink);
-           border:1px solid #E5C77A;border-radius:8px;padding:12px 14px" id="termsWarn"></div>
-      <div style="overflow-x:auto"><table id="termsTable">
-        <thead><tr><th>Candidate term</th><th class="num">Postings</th>
-          <th class="num">Employers</th><th>Adjudication</th>
-          <th>Example sentence</th></tr></thead>
-        <tbody></tbody></table></div>
-    </div>
-  </section>
+<!-- ============================== RIGOUR =============================== -->
+<section>
+  <div class="box rigour">
+    <h2>We show the findings we threw away</h2>
+    <p id="rigourLine">Loading...</p>
+    <p class="small">A pattern in a small number of job ads can appear by chance.
+      Before reporting anything, we check whether the pattern is strong enough to
+      be worth acting on — and we publish the ones that failed that check next to
+      the ones that passed.</p>
+    <p><a class="btn" href="/method">How we checked &rarr;</a></p>
+  </div>
+</section>
 
-  <!-- ============================= METHODS ============================= -->
-  <section id="v-methods" hidden>
-    <div class="panel">
-      <div class="seclabel">Methods &amp; data</div>
-      <p class="note">Five things a reader should be able to check before believing
-        anything above.</p>
-      <div id="methods"></div>
-    </div>
-  </section>
+<!-- ============================== LIMITS =============================== -->
+<section>
+  <div class="box limits">
+    <h2>What this cannot do yet</h2>
+    <ul>
+      <li id="limData">Most of the data is generated test data.</li>
+      <li>The real job ads come from a small number of company hiring pages, so
+        they are not a fair sample of the Indian job market.</li>
+      <li>We can say a skill is <i>in demand</i>. We cannot yet say whether a
+        trainee in a particular district could actually reach that job.</li>
+      <li>The skill list is fixed. A skill that is not on the list is not
+        counted — so we also show which unknown terms keep appearing, and the
+        list can be extended.</li>
+      <li id="limSyl">The syllabus we compare against is a stand-in.</li>
+    </ul>
+    <p class="small">This box is deliberately on the first page. A judge who finds
+      the caveat themselves trusts everything else less.</p>
+  </div>
+</section>
+
+<section>
+  <a class="btn primary" href="/dashboard">See the evidence &rarr;</a>
+  <a class="btn" href="/method">How we checked &rarr;</a>
+</section>
+
+<footer id="foot"></footer>
 </div>
-
-<div id="drawer"><div id="dpanel">
-  <button id="dclose">Close</button>
-  <h2 id="dtitle"></h2>
-  <div class="tiny" id="dcalc"></div>
-  <div class="filters" id="dfilters"></div>
-  <div id="dlist"></div>
-</div></div>
 
 <script>
 /* ------------------------------------------------------------------ util */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const pct = v => (v == null ? "—" : v.toFixed(1) + "%");
-const pp  = v => (v >= 0 ? "+" : "") + v.toFixed(1) + " pp";
 
-let OV = null, F = null, FEAT = null, LOC = null, SYL = null, SENS = null,
-    TERMS = null, chart = null;
-let supAll = false, disAll = false, seq = 0;
-let STATS_DIRTY = true;
+let OV_TOTAL = 0;   // corpus size, for the figure's source line
 
 async function get(url){
   // no-store: the database is rebuilt between runs, so a cached response can
-  // show numbers that no longer exist. Correctness, not performance.
+  // show numbers that no longer exist.
   const r = await fetch(url, {cache: "no-store"});
-  if(!r.ok) throw new Error(url + " → HTTP " + r.status);
+  if(!r.ok) throw new Error(url + " -> HTTP " + r.status);
   return r.json();
 }
+
+/* Honesty rule 1: if the data is not there, say so. Never substitute a
+   demonstration number to keep the page looking finished. */
 function fail(msg){
-  $(".wrap").innerHTML = `<p class="err" style="margin-top:40px;font-size:20px">
-    Data unavailable: ${esc(msg)}<br><span class="tiny">
-    No demonstration numbers are substituted. Try: python pipeline.py, then restart run.py.
-    </span></p>`;
+  $(".wrap").innerHTML = '<p class="err" style="margin-top:48px;font-size:21px">'
+    + 'Data unavailable: ' + esc(msg) + '<br><span class="small">No demonstration '
+    + 'numbers are substituted. Try: python pipeline.py, then restart run.py.'
+    + '</span></p>';
 }
 
-/* --------------------------------------------------------------- banner */
-function renderBanner(ov){
-  const by = Object.entries(ov.sources || {}).sort((a,b)=>b[1]-a[1])
-    .map(([k,v]) => `${esc(k)} ${v}`).join(" · ");
-  $("#bl1").textContent =
-    ov.provenance === "mixed"
-      ? `MIXED CORPUS · ${ov.n_postings} postings: ${ov.n_synthetic} synthetic test records + ${ov.n_real} real API records.`
-      : ov.provenance === "real"
-      ? `REAL CORPUS · ${ov.n_real} postings from live job-board APIs.`
-      : ov.provenance === "synthetic"
-      ? `SYNTHETIC CORPUS · all ${ov.n_postings} postings are generated test records.`
-      : `NO DATA · the corpus is empty.`;
-  $("#bl2").textContent =
-    `${ov.n_ts_excluded} real records intentionally excluded from historical trend analysis: modification date only. `
-    + `Sources — ${by}. Observed through ${ov.observed_through}.`;
-  $("#bcomp").onclick = () => go("methods");
+/* Plain-English description of where the data came from. Derived from the
+   corpus, never hardcoded -- if the corpus becomes all-real, this sentence
+   changes on its own. */
+function provSentence(ov){
+  if(ov.provenance === "real")
+    return "<b>All " + ov.n_real + " job ads in this system are real</b>, collected "
+         + "from public company hiring pages.";
+  if(ov.provenance === "synthetic")
+    return "<b>Every record here is generated test data.</b> None of it is a real "
+         + "job ad, and no number on this site describes the real job market.";
+  if(ov.provenance === "empty")
+    return "<b>There is no data loaded.</b> Nothing on this site is measurable.";
+  return "<b>Read this first: " + ov.n_synthetic + " of the " + ov.n_postings
+       + " records here are test data we generated ourselves to check the system "
+       + "works, and " + ov.n_real + " are real job ads</b> collected from the public "
+       + "hiring pages of real companies. Percentages computed over the whole set "
+       + "describe our test data, not the Indian job market.";
+}
+
+/* --------------------------------------------------------- headline numbers */
+function drawNumbers(ov, tally){
+  const nBoards = Object.keys(ov.sources).filter(k => k !== "synthetic").length;
+  const cards = [
+    [ov.n_postings, "job ads in the system",
+     ov.n_real + " real, " + ov.n_synthetic + " generated test records"],
+    [ov.n_real, "of them are real",
+     "collected through " + nBoards + " public job-board "
+       + (nBoards === 1 ? "system" : "systems") + " ("
+       + Object.keys(ov.sources).filter(k => k !== "synthetic").join(", ") + ")"],
+    [ov.skill_dict_size, "skills we look for",
+     "a fixed list; anything outside it is not counted"],
+    [tally.sup, "findings with strong evidence",
+     "across " + tally.roles + " job roles measured so far"],
+    [tally.dis, "findings we threw out",
+     "not enough data to be sure — shown anyway"]
+  ];
+  $("#nums").innerHTML = cards.map(c =>
+    '<div class="n"><div class="v">' + esc(c[0]) + '</div><div class="k">'
+    + esc(c[1]) + '</div><div class="s">' + esc(c[2]) + '</div></div>').join("");
+}
+
+/* ------------------------------------------------------------ role explorer */
+function drawRoles(ov, per){
+  $("#chips").innerHTML = ov.roles.map(r => {
+    const f = per[r];
+    let d;
+    if(!f){
+      d = "could not be loaded";
+    } else if(f.latest_n < ov.thresholds.low_confidence_n){
+      // Honesty rule 5: a thin bucket says so, in plain words, on this page too.
+      d = "only " + f.latest_n + " job ads in the latest quarter — too few to "
+        + "draw a conclusion from";
+    } else {
+      d = f.n_supported + " " + (f.n_supported === 1 ? "finding" : "findings")
+        + " with strong evidence, from " + f.latest_n + " job ads in the latest "
+        + "quarter";
+    }
+    return '<a class="chip" data-r="' + esc(r.toLowerCase())
+      + '" href="/dashboard?role=' + encodeURIComponent(r) + '">'
+      + '<div class="r">' + esc(r) + '</div><div class="d">' + esc(d) + '</div></a>';
+  }).join("");
+
+  $("#roleNote").textContent =
+    ov.roles.length + " roles measured so far — these are examples, not the whole "
+    + "list of jobs that exist. The pipeline works for any role once there are "
+    + "enough job ads for it.";
+
+  const q = $("#q");
+  q.oninput = () => {
+    const t = q.value.trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll(".chip").forEach(c => {
+      const hit = c.dataset.r.indexOf(t) !== -1;
+      c.hidden = !hit;
+      if(hit) shown++;
+    });
+    const nh = $("#noHit");
+    nh.hidden = shown !== 0;
+    nh.textContent = 'No role matching "' + q.value.trim() + '" has been measured '
+      + "yet. Only the " + ov.roles.length + " roles above have enough job ads.";
+  };
+}
+
+/* ------------------------------------------------- the three-second image */
+/* The example is chosen live from the data. Nothing about it is written into
+   the page: change the corpus and the picture changes with it. */
+function pickGap(f){
+  const cand = (f.supported || []).filter(r => !r.taught);
+  if(!cand.length) return null;
+  return cand.sort((a, b) => b.latest_share - a.latest_share)[0];
+}
+
+async function drawImage(ov, role, f){
+  const g = pickGap(f);
+  if(!g){
+    $("#image").innerHTML = '<p class="small">Nothing currently clears the bar for '
+      + 'this picture: no skill is both in demand and untaught with strong enough '
+      + 'evidence. That is the honest state of the data, not a loading error.</p>';
+    return;
+  }
+  $("#bridgeWord").textContent = "not taught";
+
+  /* Prefer a REAL posting if one is behind this number. If every posting
+     counted is a generated record, the card says so rather than implying a
+     real advertisement. */
+  let post = null, sent = null, hit = null;
+  try{
+    const ps = await get("/api/postings?role=" + encodeURIComponent(role)
+      + "&skill=" + encodeURIComponent(g.skill)
+      + "&quarter=" + encodeURIComponent(f.latest_quarter) + "&limit=25");
+    const list = ps.postings || [];
+    post = list.filter(p => p.source !== "synthetic")[0] || list[0] || null;
+    if(post){
+      const d = await get("/api/posting/" + encodeURIComponent(post.id)
+        + "?skill=" + encodeURIComponent(g.skill));
+      /* match_sentences returns {sentence, matched}, not a bare string.
+         Deliberately the FIRST match, not the best-reading one: picking the
+         most quotable sentence out of several would be cherry-picking the
+         evidence, which is the habit this whole project exists to avoid. */
+      const m = (d.match_sentences || [])[0];
+      if(m){ sent = m.sentence; hit = m.matched || g.skill; }
+    }
+  }catch(e){
+    // The card degrades to the counts alone. It never invents a quote.
+    console.error("evidence lookup failed:", e);
+  }
+
+  const tag = !post ? ""
+    : post.source === "synthetic"
+      ? '<div class="meta" style="color:var(--miss)"><b>Generated test record</b> '
+        + '— not a real advertisement</div>'
+      : '<div class="meta"><b>Real posting</b> &middot; ' + esc(post.source) + '</div>';
+
+  let quote = "";
+  if(sent){
+    /* Highlight the alias that actually fired. A posting may say "GenAI" where
+       the dictionary's canonical term is "LLM"; highlighting the canonical term
+       would highlight nothing, and would imply the ad used a word it did not. */
+    const term = hit || g.skill;
+    const re = new RegExp("(" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+    quote = '<div class="quote">&ldquo;'
+          + esc(sent).replace(re, '<span class="hit">$1</span>') + '&rdquo;</div>';
+  }
+
+  $("#docAd").innerHTML =
+    '<div class="lbl">A job advertisement</div>'
+    + (post
+        ? '<h3>' + esc(post.title) + '</h3><div class="meta">' + esc(post.company)
+          + (post.location ? ' &middot; ' + esc(post.location) : '') + '</div>' + tag
+        : '')
+    + quote
+    + '<div class="meta" style="margin-top:14px"><b>' + g.latest_count + ' of '
+    + g.latest_n + '</b> ' + esc(role) + ' job ads in ' + esc(f.latest_quarter)
+    + ' asked for <b>' + esc(g.skill) + '</b>.</div>';
+
+  const cur = ov.curriculum;
+  $("#docSyl").innerHTML =
+    '<div class="lbl">The course syllabus</div>'
+    + '<h3>' + esc(cur.name) + '</h3>'
+    + '<div class="meta">' + cur.n_subjects + ' subjects &middot; '
+    + cur.n_skills_taught + ' skills taught</div>'
+    + '<div class="lines"><div>' + cur.n_skills_taught + ' skills taught across '
+    + 'the whole programme</div><div class="no">' + esc(g.skill)
+    + ' — not taught in any subject</div></div>'
+    + '<div class="meta" style="margin-top:14px">Source: ' + esc(cur.source) + '</div>';
+
+  $("#imgCap").innerHTML =
+    "Employers asked for <b>" + esc(g.skill) + "</b> in " + g.latest_count + " of the "
+    + g.latest_n + " " + esc(role) + " job ads from " + esc(f.latest_quarter)
+    + ". The syllabus does not teach it. That is one gap — "
+    + '<a href="/dashboard?role=' + encodeURIComponent(role)
+    + '">the dashboard lists the rest</a>.';
+}
+
+/* ---------------------------------------------------------------- figure */
+/* Conventions taken from the UK Government Analysis Function guidance for
+   charts in statistical publications, since the reader here is a government
+   department:
+     - a headline that states the message, not "Figure 1"
+     - a statistical subtitle: what the data is, whose it is, which period
+     - a source line, always
+     - horizontal text only, so the skill names are transposed onto the y axis
+     - light grey gridlines, no shaded background, no 3D, no borders
+     - colour never carries meaning alone: each bar is also labelled in words
+     - an accessible data table alongside the picture
+   No p-values here. This page reports counts. */
+let FIG = null;
+
+function drawFigure(role, f){
+  if(typeof Chart === "undefined") return;          // vendored file missing
+  const rows = (f.supported || []).concat(f.discarded || [])
+    .filter(r => r.latest_count > 0)
+    .sort((a, b) => b.latest_share - a.latest_share)
+    .slice(0, 8);
+  if(!rows.length) return;
+
+  const nUntaught = rows.filter(r => !r.taught).length;
+  $("#figH").textContent = nUntaught
+    ? nUntaught + " of the " + rows.length + " skills most asked for in "
+      + role + " job ads are not taught by the syllabus"
+    : "Every skill most asked for in " + role + " job ads is taught by the syllabus";
+  $("#figSub").textContent =
+    "Share of " + f.latest_n + " " + role + " job ads in " + f.latest_quarter
+    + " that mentioned each skill, with the number of ads behind each bar. "
+    + "Eight most-mentioned skills shown.";
+
+  /* The label carries the taught/not-taught status in words, so the chart is
+     still readable in greyscale or by a colour-blind reader. */
+  const labels = rows.map(r => r.taught ? r.skill : r.skill + "  (not taught)");
+
+  if(FIG) FIG.destroy();
+  FIG = new Chart($("#figChart"), {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: rows.map(r => r.latest_share),
+        backgroundColor: rows.map(r => r.taught ? "#C9AE8C" : "#A5553C"),
+        borderRadius: 2,
+        barPercentage: 0.78,        // gap narrower than the bar, per the guidance
+        categoryPercentage: 0.82
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      layout: {padding: {right: 12}},
+      plugins: {
+        legend: {display: false},   // the key is in HTML, where a reader can select it
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            title: it => rows[it[0].dataIndex].skill,
+            label: it => {
+              const r = rows[it.dataIndex];
+              return [r.latest_count + " of " + r.latest_n + " job ads ("
+                      + r.latest_share.toFixed(1) + "%)",
+                      r.taught ? "Taught by the syllabus" : "Not taught by the syllabus"];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {beginAtZero: true, max: 100,
+            /* Never break a numerical axis on a bar chart. */
+            ticks: {callback: v => v + "%", color: "#5F4B39", font: {size: 14}},
+            grid: {color: "#E8DFD2", drawBorder: false},
+            title: {display: true, text: "share of job ads mentioning the skill",
+                    color: "#5F4B39", font: {size: 14}}},
+        y: {ticks: {color: "#2B2118", font: {size: 15}, autoSkip: false},
+            grid: {display: false}}
+      }
+    }
+  });
+
+  $("#figTable").querySelector("tbody").innerHTML = rows.map(r =>
+    "<tr><td>" + esc(r.skill) + "</td>"
+    + '<td class="num">' + r.latest_count + " of " + r.latest_n + "</td>"
+    + '<td class="num">' + r.latest_share.toFixed(1) + "%</td>"
+    + "<td>" + (r.taught ? "Yes" : "<b>No</b>") + "</td></tr>").join("");
+
+  $("#figSrc").textContent =
+    "Source: Skill Drift Analyzer, " + f.latest_quarter + ". Computed from "
+    + f.latest_n + " job ads classified as " + role + ", out of "
+    + OV_TOTAL + " records in the database. A skill outside our fixed list is not "
+    + "counted. Percentages share one denominator: the " + f.latest_n
+    + " job ads in that quarter.";
 }
 
 /* ----------------------------------------------------------------- boot */
 async function boot(){
-  OV = await get("/api/overview");
-  renderBanner(OV);
-  // Short form here; the full syllabus identity is stated in the hero panel.
-  $("#sylId").textContent =
-    `Syllabus: BTech CSE demonstration syllabus · ${OV.curriculum.n_subjects} subjects · `
-    + `${OV.curriculum.n_skills_taught} mapped competencies · ${OV.curriculum.source}`;
+  let ov;
+  try{ ov = await get("/api/overview"); }
+  catch(e){ return fail(e.message); }
+  if(!ov.n_postings) return fail("the corpus is empty");
 
-  const sel = $("#role");
-  sel.innerHTML = OV.roles.map(r => `<option>${esc(r)}</option>`).join("");
-  sel.value = OV.roles.includes("Data Analyst") ? "Data Analyst" : OV.roles[0];
-  sel.onchange = load;
+  $("#provText").innerHTML = provSentence(ov);
 
-  document.querySelectorAll("nav button").forEach(b =>
-    b.onclick = () => go(b.dataset.v));
-  $("#dclose").onclick = closeDrawer;
-  $("#drawer").onclick = e => { if(e.target.id === "drawer") closeDrawer(); };
-  $("#supMore").onclick = () => { supAll = !supAll; drawLists(); };
-  $("#disMore").onclick = () => { disAll = !disAll; drawLists(); };
+  /* Findings for every role, so the counts on this page describe the whole
+     system rather than whichever role happened to be the default. */
+  OV_TOTAL = ov.n_postings;
+  const per = {};
+  let sup = 0, dis = 0, ok = 0;
+  await Promise.all(ov.roles.map(async r => {
+    try{
+      const f = await get("/api/findings?role=" + encodeURIComponent(r));
+      per[r] = f; sup += f.n_supported; dis += f.n_discarded; ok++;
+    }catch(e){
+      console.error("findings failed for", r, e);
+    }
+  }));
 
-  await load();
-}
+  drawNumbers(ov, {sup: sup, dis: dis, roles: ok});
+  drawRoles(ov, per);
 
-function go(v){
-  document.querySelectorAll("nav button").forEach(b =>
-    b.classList.toggle("on", b.dataset.v === v));
-  ["findings","location","syllabus","stats","terms","methods"].forEach(k =>
-    $("#v-" + k).hidden = (k !== v));
-  window.scrollTo(0,0);
-  // Charts must NOT be drawn into a hidden section: Chart.js sizes a canvas
-  // from its layout box, a hidden box has none, and the 0x0 inline width it
-  // then writes survives a later resize(). So draw on first show instead.
-  if(v === "stats" && STATS_DIRTY){
-    STATS_DIRTY = false;
-    // setTimeout, not requestAnimationFrame: rAF is tied to the compositor and
-    // does not fire in a pane that is not actively painting, which silently
-    // left every chart undrawn. A timer runs regardless; reading a layout
-    // property first forces the box to be measured before Chart.js sizes to it.
+  $("#rigourLine").innerHTML =
+    "Across " + ok + " job roles we tested " + (sup + dis) + " possible findings. <b>"
+    + sup + "</b> had strong enough evidence to report. <b>" + dis + "</b> did not, "
+    + "and we show those too.";
+
+  /* The limits box states the real split and the real syllabus status, so it
+     cannot drift out of date the way a hand-written caveat would. */
+  $("#limData").innerHTML = ov.n_real + " of the " + ov.n_postings
+    + " job ads are real; the other " + ov.n_synthetic + " are generated test data "
+    + "that exists to prove the machinery works end to end.";
+  $("#limSyl").innerHTML = "The syllabus we compare against (" + esc(ov.curriculum.name)
+    + ") is marked <i>" + esc(ov.curriculum.source) + "</i> — "
+    + (String(ov.curriculum.source).indexOf("synthetic") !== -1
+        ? "a hand-assembled stand-in, not an official published curriculum."
+        : "see the method page for how it was sourced.");
+
+  const role = ov.roles.indexOf("Data Analyst") !== -1 ? "Data Analyst" : ov.roles[0];
+  if(per[role]){
+    await drawImage(ov, role, per[role]);
+    /* setTimeout, not requestAnimationFrame: rAF is tied to the compositor and
+       does not fire in a pane that is not actively painting, which silently
+       left every chart undrawn once already. Reading a layout property first
+       forces the box to be measured before Chart.js sizes to it. */
     setTimeout(() => {
-      void document.querySelector("#v-stats").offsetHeight;
-      drawStats().catch(e => console.error("drawStats failed:", e));
+      void document.querySelector(".fig-box").offsetHeight;
+      try{ drawFigure(role, per[role]); }
+      catch(e){ console.error("drawFigure failed:", e); }
     }, 0);
   }
+
+  $("#foot").textContent =
+    "Skill Drift Analyzer · database built " + ov.built_at
+    + " · job ads observed through " + ov.observed_through
+    + " · every number on this page is read from that database at load time.";
 }
-
-/* --------------------------------------------------------------- load */
-async function load(){
-  const my = ++seq, role = $("#role").value;
-  try{
-    const [f, loc, syl, sens] = await Promise.all([
-      get(`/api/findings?role=${encodeURIComponent(role)}`),
-      get(`/api/locations?role=${encodeURIComponent(role)}&country=India&top=3`),
-      get(`/api/obsolete?role=${encodeURIComponent(role)}`),
-      get(`/api/sensitivity?role=${encodeURIComponent(role)}`)
-    ]);
-    if(my !== seq) return;
-    F = f; LOC = loc; SYL = syl; SENS = sens; supAll = disAll = false;
-    FEAT = f.featured_skill
-      ? await get(`/api/finding?role=${encodeURIComponent(role)}&skill=${encodeURIComponent(f.featured_skill)}`)
-      : null;
-    if(my !== seq) return;
-    $("#histWrap").style.display = "none";
-    drawHero(); drawDiscarded(); drawLists(); drawSensitivity();
-    drawLocation(); drawSyllabus(); drawMethods(); loadTerms(); loadYield();
-    // The corpus or role changed, so the charts are stale. Redraw now only if
-    // the section is on screen; otherwise defer to the next time it is shown.
-    STATS_DIRTY = true;
-    if(!$("#v-stats").hidden){ STATS_DIRTY = false; drawStats(); }
-  }catch(e){ fail(e.message); }
-}
-
-/* ---------------------------------------------------------------- hero */
-const PROV_LABEL = {synthetic:"Synthetic test finding", mixed:"Mixed-source finding",
-                    real:"Real-posting finding", empty:"No records"};
-
-function drawHero(){
-  if(!FEAT){
-    $("#hero").innerHTML = `<div class="kicker">No review candidate</div>
-      <p class="note">No competency for this occupation met the decision rule
-      (prevalence ≥ ${F.criteria.min_latest_share_pct}%, a change of at least
-      ${F.criteria.trend_delta_pp} pp, and ${esc(F.criteria.correction)}-adjusted
-      p &lt; ${F.criteria.alpha}). That is a result, not a gap in the page.</p>`;
-    return;
-  }
-  const f = FEAT, pv = f.prevalence, sy = f.syllabus, st = f.statistics, cp = f.composition;
-  const dc = f.denominator_composition, bc = f.baseline_composition;
-  const mapped = sy.taught
-    ? `${sy.n_subjects_teaching} of ${sy.n_subjects_total} subjects`
-    : `0 of ${sy.n_subjects_total} subjects`;
-  $("#hero").innerHTML = `
-    <div>
-      <div class="kicker">Review candidate</div>
-      <div class="heroTop">
-        <div class="heroSkill">${esc(f.skill)}</div>
-        <span class="prov ${esc(f.scenario.key)}">${esc(f.scenario.label)}</span>
-      </div>
-      <div class="cols">
-        <div class="col">
-          <div class="colhead">Advertised requirement</div>
-          <div><span class="big">${pct(pv.share)}</span><span class="beside">${pv.count} of ${pv.n} postings</span></div>
-          <div class="under" style="font-size:15px">Counted ${cp.n_real} real /
-            ${cp.n_synthetic} synthetic &nbsp;·&nbsp; denominator ${dc.n_real} real /
-            ${dc.n_synthetic} synthetic &nbsp;·&nbsp; baseline ${bc.n_real} real /
-            ${bc.n_synthetic} synthetic</div>
-          <div class="under">${esc(f.role)} · ${esc(f.latest_quarter)} · 95% prevalence interval ${pct(pv.ci95[0])} – ${pct(pv.ci95[1])}
-            ${pv.low_confidence ? '<span class="flag">LOW CONFIDENCE · n=' + pv.n + '</span>' : ''}</div>
-        </div>
-        <div class="col right">
-          <div class="colhead">Syllabus mapping</div>
-          <div><span class="big">${sy.taught ? sy.n_subjects_teaching : 0}</span><span class="beside">of ${sy.n_subjects_total} subjects</span></div>
-          <div class="under">${sy.taught
-            ? esc(sy.subjects.map(s=>s.code).join(", ")) + " map this competency"
-            : "No mapped mention of " + esc(f.skill)}</div>
-          <div class="under">BTech CSE demonstration syllabus</div>
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="actionband">
-        <div class="do">Review whether this competency is already taught or needs an added practical.</div>
-        <div class="bound">A missing syllabus mapping does not establish missing teaching.
-          ${esc(f.scenario.detail)}</div>
-      </div>
-      <div class="btnrow">
-        <button class="btn" id="heroEv">Check supporting postings</button>
-        <button class="btn sec" id="heroSyl">Check syllabus mapping</button>
-        <button class="btn link" id="heroHist">View history</button>
-        <span class="tiny" style="font-size:14px">${esc(st.correction)}-adjusted p = ${st.p_adjusted}
-          (raw ${st.p_raw}, family of ${st.family_size}) &mdash; ${esc(st.decision)}
-          &middot; Fisher exact p = ${st.p_fisher} (sensitivity only, gates nothing)
-          &middot; change ${pp(st.diff_ci95 ? st.diff_ci95[0] : 0)} to
-          ${pp(st.diff_ci95 ? st.diff_ci95[1] : 0)} (95% Newcombe)</span>
-      </div>
-    </div>`;
-  $("#heroEv").onclick = () => openDrawer(f.role, f.skill, f.latest_quarter);
-  $("#heroSyl").onclick = () => go("syllabus");
-  $("#heroHist").onclick = () => showHistory(f.skill);
-}
-
-/* ----------------------------------------------------- discarded strip */
-function drawDiscarded(){
-  const d = (F.discarded || [])[0];
-  if(!d){ $("#disc").innerHTML =
-    `<div class="kicker">Discarded as a drift alert</div>
-     <div class="why">No competency was rejected by the decision rule for this occupation.</div>`;
-    return; }
-  $("#disc").innerHTML = `
-    <div class="kicker">Discarded as a drift alert</div>
-    <div class="line">${esc(d.skill)} · ${pct(d.latest_share)} (${d.latest_count} of ${d.latest_n})
-      · raw p = ${d.p_raw} · adjusted p = ${d.p_adjusted}</div>
-    <div style="display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap">
-      <div class="why" style="flex:1;min-width:280px">High observed prevalence; insufficient
-        evidence of change. This rejects the <i>change</i> claim, not the competency.</div>
-      <button class="btn sec" id="discEv">Inspect discarded result</button>
-    </div>`;
-  $("#discEv").onclick = () => openDrawer(F.role, d.skill, F.latest_quarter);
-}
-
-/* --------------------------------------------------------------- lists */
-function row(r, decClass){
-  return `<tr class="click" data-skill="${esc(r.skill)}">
-    <td><span class="skillname">${esc(r.skill)}</span>
-        <div class="sub2">${esc(r.category)}${r.taught ? " · mapped in syllabus" : " · not mapped in syllabus"}</div></td>
-    <td class="num">${pct(r.latest_share)}<div class="sub2">${r.latest_count} of ${r.latest_n}</div>
-        ${r.low_confidence ? '<div class="sub2"><span class="flag">LOW n=' + r.latest_n + '</span></div>' : ''}</td>
-    <td class="num">${pp(r.change_pp)}<div class="sub2">from ${pct(r.baseline_share)} (${r.baseline_count} of ${r.baseline_n})</div></td>
-    <td><span class="dec ${decClass}">${esc(r.decision)}</span>
-        <div class="sub2">adjusted p = ${r.p_adjusted}</div></td></tr>`;
-}
-
-function drawLists(){
-  const sup = F.supported, dis = F.discarded;
-  $("#supTitle").textContent = `Supported drift alerts (${F.n_supported})`;
-  $("#supNote").textContent =
-    `Prevalence at least ${F.criteria.min_latest_share_pct}% of ${F.latest_n} `
-    + `${F.role} postings in ${F.latest_quarter}, a change of at least `
-    + `${F.criteria.trend_delta_pp} pp, and ${F.criteria.correction}-adjusted p < `
-    + `${F.criteria.alpha} across a family of ${F.correction ? F.correction.family_size : "?"} tested competencies.`;
-  $("#disTitle").textContent = `Discarded drift alerts (${F.n_discarded})`;
-
-  const s = supAll ? sup : sup.slice(0,5);
-  const t = disAll ? dis : dis.slice(0,3);
-  $("#supTable tbody").innerHTML = s.length ? s.map(r => row(r,"sup")).join("")
-    : `<tr><td colspan="4" class="tiny">None met the rule.</td></tr>`;
-  $("#disTable tbody").innerHTML = t.length ? t.map(r => row(r,"")).join("")
-    : `<tr><td colspan="4" class="tiny">None were rejected.</td></tr>`;
-  $("#supMore").textContent = sup.length > 5 ? (supAll ? "Show fewer" : `Show all ${sup.length}`) : "";
-  $("#disMore").textContent = dis.length > 3 ? (disAll ? "Show fewer" : `Show all ${dis.length}`) : "";
-
-  document.querySelectorAll("#supTable tbody tr.click, #disTable tbody tr.click")
-    .forEach(tr => tr.onclick = () => feature(tr.dataset.skill));
-}
-
-async function feature(skill){
-  try{
-    FEAT = await get(`/api/finding?role=${encodeURIComponent(F.role)}&skill=${encodeURIComponent(skill)}`);
-    drawHero(); window.scrollTo(0,0);
-  }catch(e){ fail(e.message); }
-}
-
-/* -------------------------------------------------------------- history */
-async function showHistory(skill){
-  const d = await get(`/api/skills?role=${encodeURIComponent(F.role)}`);
-  const m = d.skills.find(x => x.skill === skill);
-  if(!m) return;
-  $("#histWrap").style.display = "";
-  $("#histTitle").textContent = `${skill} · quarterly history`;
-  const b = m.baseline_quarters.join(" + ");
-  $("#histNote").textContent =
-    `Baseline ${b}: ${pct(m.baseline_share)} (${m.baseline_count} of ${m.baseline_n}) → `
-    + `Latest ${m.latest_quarter}: ${pct(m.latest_share)} (${m.latest_count} of ${m.latest_n}). `
-    + `The baseline is POOLED across two quarters — it is not a single earlier quarter.`;
-
-  const labels = m.series.map(p => p.quarter);
-  if(chart) chart.destroy();
-  chart = new Chart($("#chart"), {
-    type:"line",
-    data:{ labels, datasets:[{
-      label:skill, data:m.series.map(p=>p.share),
-      borderColor:"#174EA6", backgroundColor:"#174EA6",
-      borderWidth:2.5, pointRadius:5, pointHoverRadius:7, tension:0,
-      segment:{ borderDash: c =>
-        (m.series[c.p0DataIndex].low_confidence || m.series[c.p1DataIndex].low_confidence)
-          ? [6,4] : undefined }
-    }]},
-    options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label: it => {
-          const p = m.series[it.dataIndex];
-          return ` ${pct(p.share)} — ${p.count} of ${p.n} postings`
-                 + (p.low_confidence ? " (low confidence)" : "");
-        }}}},
-      scales:{ y:{ min:0, max:100, ticks:{ color:"#374151", font:{size:15},
-                   callback:v=>v+"%" }, grid:{ color:"#E5E9EF" } },
-               x:{ ticks:{ color:"#374151", font:{size:15} }, grid:{ display:false } } } }
-  });
-  $("#nrow").innerHTML = m.series.map(p =>
-    `<span>${p.low_confidence ? "LOW " : ""}n=${p.n}</span>`).join("");
-  $("#histWrap").scrollIntoView({behavior:"smooth", block:"start"});
-}
-
-/* ----------------------------------------------------- threshold sensitivity */
-/* 15% prevalence and +5pp are OUR rules, not facts about the labour market.
-   Prespecification stops opportunism but does not make a threshold correct, so
-   show which recommendations persist when the rule moves. A competency in every
-   cell is robust; one in a single cell is an artefact of where we drew the line. */
-function drawSensitivity(){
-  const S = SENS;
-  $("#sensNote").textContent =
-    `The current rule is prevalence ≥ ${S.current_rule.min_share_pct}% and change ≥ `
-    + `${S.current_rule.min_change_pp} pp. Re-running across ${S.n_cells} combinations `
-    + `(prevalence ${S.grid.prevalence.join("/")}%, change ${S.grid.change.join("/")} pp) `
-    + `gives ${S.n_robust} competencies that pass in EVERY cell. Read that narrowly: `
-    + `the cells reuse the same observations, so they are not independent confirmations, `
-    + `and a large change will naturally survive neighbouring thresholds. It rules out one `
-    + `specific way of being wrong — a threshold picked to flatter the result. It is not validity.`;
-  $("#sensTable tbody").innerHTML = S.persistence.length
-    ? S.persistence.map(r => `<tr>
-        <td><span class="skillname">${esc(r.skill)}</span></td>
-        <td class="num">${r.cells} of ${r.of}</td>
-        <td class="num">${pct(r.latest_share)}</td>
-        <td>${r.robust
-              ? '<span class="dec sup">robust across the tested grid</span>'
-              : '<span class="dec">depends on the threshold</span>'}</td></tr>`).join("")
-    : `<tr><td colspan="4" class="tiny">No competency passed in any cell.</td></tr>`;
-}
-
-/* ------------------------------------------------------- unmapped terms */
-/* The dictionary is closed, so a term not in it is UNMEASURED, not absent from
-   demand. This is the discovery half: candidates for a human to adjudicate. It
-   is deliberately NOT wired into any count elsewhere on the site. */
-let YIELD = null;
-async function loadYield(){
-  try{ YIELD = await get("/api/yield"); }catch(e){ return; }
-  drawMethods();
-}
-
-async function loadTerms(){
-  try{
-    TERMS = await get("/api/phrases?min_postings=3&min_employers=2&limit=40");
-  }catch(e){ return; }
-  const T = TERMS;
-  $("#termsNote").textContent =
-    `${T.n_candidates} phrases appear in at least ${T.min_postings} real postings from at `
-    + `least ${T.min_employers} different employers, and are absent from the `
-    + `${T.dictionary_size}-term dictionary. Scanned ${T.n_postings_scanned} real postings. `
-    + `Employer count matters more than posting count: ten copied adverts from one employer `
-    + `are one lead, not ten confirmations.`;
-  $("#termsWarn").textContent = T.note
-    + " Not every occurrence is a requirement: \"AI\" may describe a company's product, "
-    + "\"SRE\" may be a role title, and \"API\" may be context rather than a competency. "
-    + "The metric that matters is how many reviewed candidates turn out to be valid, "
-    + "distinct competencies — not how many phrases the script finds.";
-  $("#termsTable tbody").innerHTML = T.candidates.length
-    ? T.candidates.map(r => `<tr>
-        <td><span class="skillname">${esc(r.phrase)}</span>
-            ${r.single_employer ? '<div class="sub2"><span class="flag">single-employer lead</span></div>' : ""}</td>
-        <td class="num">${r.postings}</td>
-        <td class="num">${r.employers}</td>
-        <td><span class="dec">Not reviewed</span>
-            <div class="sub2">competency / task / product / alias / noise?</div></td>
-        <td class="sub2">${esc((r.example || "").slice(0,150))}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="tiny">No candidates met the thresholds.</td></tr>`;
-}
-
-/* ------------------------------------------------------------- location */
-function drawLocation(){
-  const mh = LOC.maharashtra || [], other = LOC.cities.filter(c => c.state !== "Maharashtra");
-  $("#locNote").textContent =
-    `Where the advertised workplace is, for ${LOC.n_postings} ${F.role} postings across `
-    + `${LOC.n_cities} locations in ${LOC.country}. This is cross-sectional evidence: it is `
-    + `not a per-city trend, and an advertised workplace does not establish which district's `
-    + `trainees can reach that job. Locations under n=${LOC.min_n} are flagged.`;
-  const mk = c => `<tr>
-    <td><span class="skillname">${esc(c.city)}</span><div class="sub2">${esc(c.state || "—")}</div></td>
-    <td class="num">${c.n}${c.low_confidence ? '<div class="sub2"><span class="flag">LOW CONFIDENCE · n=' + c.n + '</span></div>' : ''}</td>
-    <td class="sub2">${c.skills.map(s => `${esc(s.skill)} ${pct(s.share)} (${s.count}/${s.n})`).join(" · ") || "—"}</td></tr>`;
-  $("#locTable tbody").innerHTML =
-    (mh.length ? `<tr><td colspan="3" class="tiny"><b>Maharashtra</b></td></tr>` + mh.map(mk).join("") : "")
-    + (other.length ? `<tr><td colspan="3" class="tiny"><b>Other locations in ${esc(LOC.country)}</b></td></tr>` + other.map(mk).join("") : "")
-    || `<tr><td colspan="3" class="tiny">No locations resolved.</td></tr>`;
-}
-
-/* ------------------------------------------------------------- syllabus */
-function drawSyllabus(){
-  const w = SYL.observation_window;
-  $("#sylNote").textContent =
-    `${SYL.n_taught} competencies are mapped by this syllabus. Observed across `
-    + `${w.n} ${SYL.role} postings, ${w.first} to ${w.last}.`;
-  const groups = [
-    ["Mapped competencies with a declining advertised trend", SYL.declining,
-     "A significant fall in advertised mentions. Still requires curriculum review before any change."],
-    ["Mapped competencies with low advertised mention", SYL.obsolete,
-     `Mentioned in under ${SYL.criteria.max_latest_share_pct}% of the latest quarter's postings.`],
-    ["Mapped competencies with no observed mention", SYL.never_seen,
-     "No observed mention is not evidence that teaching should be removed. Foundational, safety and prerequisite competencies are rarely named in advertisements."],
-  ];
-  $("#sylGroups").innerHTML = groups.map((g,i) => {
-    const [title, rows, note] = g;
-    const shown = rows.slice(0, 6);
-    return `<div class="seclabel" style="font-size:20px;margin-top:24px">${esc(title)} (${rows.length})</div>
-      <p class="note">${esc(note)}</p>
-      ${rows.length ? `<div style="overflow-x:auto"><table>
-        <thead><tr><th>Competency</th><th class="num">Observed</th><th>Subjects teaching it</th><th>Review status</th></tr></thead>
-        <tbody>${shown.map(r => `<tr>
-          <td><span class="skillname">${esc(r.skill)}</span></td>
-          <td class="num">${r.observed_n != null
-              ? `${r.observed_count} of ${r.observed_n}<div class="sub2">whole window</div>`
-              : `${pct(r.latest_share)}<div class="sub2">${r.latest_count} of ${r.latest_n}</div>`}</td>
-          <td class="sub2">${(r.subjects||[]).map(s => esc(s.code) + " " + esc(s.name)).join("<br>") || "—"}</td>
-          <td><span class="dec">Not assessed</span>
-              <div class="sub2">Check prerequisite or practical relevance</div></td></tr>`).join("")}
-        </tbody></table></div>
-        ${rows.length > 6 ? `<p class="tiny">Showing 6 of ${rows.length}.</p>` : ""}`
-        : `<p class="tiny">None.</p>`}`;
-  }).join("");
-}
-
-/* -------------------------------------------------------------- methods */
-function drawMethods(){
-  const by = Object.entries(OV.sources||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(" · ");
-  const c = F.correction || {};
-  const Y = YIELD;
-  const yieldRow = Y ? [
-    ["Current historical-analysis eligibility", `${Y.real_total.collected} real postings collected, ${Y.real_total.historically_eligible} eligible for the quarterly analysis today (${Y.real_total.yield_pct}%). Accessibility to trainees: NOT ASSESSED.`,
-     `Read the name precisely. This is what can enter the QUARTERLY analysis today, not a
-      verdict on a source. Greenhouse's zero is zero for the HISTORICAL series only: those
-      records already feed the cross-sectional views, and can join a prospective series once
-      a starting inventory is frozen, because successive snapshots establish when a
-      requisition was first OBSERVED even though the source publishes no creation date.
-      Source publication dates and first-observed dates are different quantities and must not
-      be pooled.
-      The final column is the one that matters to an administrator and it is empty: passing our
-      role and date filters says a record can enter OUR pipeline, not that the job is one the
-      intended trainees could be hired into. Until that review is done, this funnel's endpoint
-      overstates usefulness.
-      <table style="margin-top:10px"><thead><tr><th>Source</th><th class="num">Collected</th>
-      <th class="num">In a measured role</th><th class="num">Date-eligible</th>
-      <th class="num">Historically eligible</th><th>Accessible to trainees</th>
-      <th class="num">Yield</th></tr></thead><tbody>`
-      + Y.by_source.map(r => `<tr><td>${esc(r.source)}</td><td class="num">${r.collected}</td>
-          <td class="num">${r.in_measured_role}</td><td class="num">${r.date_eligible}</td>
-          <td class="num"><b>${r.historically_eligible}</b></td>
-          <td><span class="dec">${esc(r.accessibility_status)}</span></td>
-          <td class="num">${r.yield_pct}%</td></tr>`).join("")
-      + `</tbody></table>`]
-  ] : [];
-  const rows = [
-    ["Sources", `${OV.n_postings} postings — ${OV.n_synthetic} synthetic, ${OV.n_real} real. ${by}.`,
-     `Real records come from public, unauthenticated ATS job-board APIs (Greenhouse, Lever) that companies
-      publish so careers pages can be embedded elsewhere. Synthetic records are generated by
-      tools/gen_seed.py to exercise the pipeline against a known drift curve; they carry
-      source="synthetic" everywhere and are never presented as observed market data.
-      The featured finding above shows its OWN composition — the corpus being mixed does not
-      tell you which records produced any single figure.`],
-    ["Dates", `${OV.n_ts_excluded} records excluded from historical bins: modification date only. Observed through ${OV.observed_through}.`,
-     `Lever createdAt and Ashby publishedAt are true creation timestamps and may be binned by quarter.
-      Greenhouse exposes only updated_at, which is last-modified: every one of those records landed in a
-      single quarter, so the field is degenerate for trend purposes. Those postings still feed extraction
-      and the cross-sectional views; they are excluded from the quarterly analysis only.
-      A quarter label does not mean the quarter was observed to its end.`],
-    ["Measurement", `${OV.skill_dict_size} tracked competency terms with aliases; ${OV.curriculum.n_skills_taught} mapped by the syllabus.`,
-     `Extraction is deterministic regex over a CLOSED dictionary. A competency not in the dictionary is
-      UNMEASURED, not absent from demand — so this page reports "changing prevalence of tracked
-      competencies", not the discovery of genuinely new skills. Occupation is assigned by conservative
-      title rules; anything uncertain becomes "Other (unclassified)" rather than being forced into a
-      bucket. Syllabus is ${esc(OV.curriculum.name)} (${esc(OV.curriculum.source)}) — a demonstration
-      syllabus, not an ITI or NSQF qualification pack.`],
-    ["Decision rule", `ONE procedure decides "supported": pooled two-proportion z-test, ${esc(c.method||"—")}-adjusted across all ${c.family_size||"—"} competencies measured for the role, p < ${F.criteria.alpha}. Reproducible; NOT yet demonstrated to be well calibrated.`,
-     `Fisher's exact test is computed and displayed as a SENSITIVITY CHECK and gates
-      nothing. Reporting two tests without saying which one decides invites picking
-      whichever supports each finding, so the rule is declared in one place in the code
-      (analysis.PRIMARY_RULE) and verify.py asserts that the supported list is a strict
-      consequence of it.
-      The correction family is every competency measured for that ROLE. Per-role
-      correction does not control a list pooled across roles, districts or repeated
-      releases -- if those are ever combined, the family must be redeclared.
-      Note on motivation: "about two false alerts across forty tests at p<0.05" describes
-      what would happen if all forty nulls were true and each test were properly
-      calibrated. It is NOT an estimate of how many previous findings were false.
-      <b>Frozen is not the same as calibrated.</b> Declaring one procedure stops us picking
-      whichever test flatters a finding. It does not show the p-values behave well: BH cannot
-      repair poorly calibrated inputs, and at n=25 with counts of one to three the normal
-      approximation is exactly where calibration is doubtful. Showing Fisher alongside does not
-      fix it either, because Fisher gates nothing. What would: measuring this procedure's
-      empirical false-discovery rate and power across repeated simulations with known ground
-      truth, or adopting a prespecified exact procedure and recomputing the whole family.
-      Neither is done. Treat these p-values as reproducible, not as validated.`],
-    ["Statistics", `Primary test is a normal approximation, weakly calibrated at these sample sizes. Fisher exact reported alongside.`,
-     `Baseline is POOLED across the first two observed quarters and compared with the latest quarter.
-      Confidence intervals shown are 95% Wilson intervals for PREVALENCE, not for the change.
-      Raw and adjusted p-values are both reported and never relabelled as each other:
-      raw significant ${c.n_significant_raw}, adjusted significant ${c.n_significant_adjusted}.
-      The correction assumes valid null p-values and independence; competencies co-occur within postings
-      and the same employers recur across periods, so that assumption is not established here.
-      This is an improvement over raw p, not a warranty.
-      The primary test is a pooled two-proportion z-test, a normal approximation that is weakly
-      calibrated at these sample sizes: at n=25 with a competency near 5% prevalence the expected
-      cell counts fall to 1-3. A two-sided FISHER EXACT test is therefore reported alongside it as
-      a conservative cross-check (${c.n_significant_fisher != null ? c.n_significant_fisher : "—"}
-      of ${c.family_size||"—"} pass it uncorrected). Intervals for the CHANGE use Newcombe's
-      Wilson-based method; checking whether two prevalence intervals overlap is not a test of the
-      difference. None of these fix employer clustering or repeated observation of the same
-      employer: "exact" describes a calculation under a model, not validity for a labour market.`],
-    ["Limits", `What this evidence cannot establish.`,
-     `A statistically supported change in ADVERTISED wording is not evidence that a course change would
-      improve employment. An absent syllabus keyword does not prove an untaught competency: it may be
-      covered by a broader learning outcome. A present keyword does not prove it is taught well.
-      Advertisements observe employer demand language, not competent labour supply, so "oversupplied"
-      cannot be inferred here. Coverage is limited to companies on public ATS boards — systematically
-      missing IT services, PSU, government and small firms, where most Indian graduates are hired.
-      Postings still open over-sample slow-to-fill roles. Every figure describes the sampled
-      advertisements, not Maharashtra's labour market.`],
-  ];
-  $("#methods").innerHTML = rows.concat(yieldRow).map(([t,fact,body]) =>
-    `<details class="m"><summary><b>${esc(t)}</b> — ${esc(fact)}</summary>
-      <div class="body">${body}</div></details>`).join("");
-}
-
-/* ----------------------------------------------------------- statistics */
-/* Every chart here carries its sample size and never blurs real with
-   generated records. A picture is easier to mislead with than a table, so the
-   captions do the work the numbers cannot. */
-const CH = {};
-function chart_(id, cfg){
-  if(CH[id]) CH[id].destroy();
-  const el = document.querySelector("#" + id);
-  if(!el) return;
-  // A previous render into a hidden box can leave width/height at 0px inline.
-  el.removeAttribute("width"); el.removeAttribute("height");
-  el.style.width = ""; el.style.height = "";
-  CH[id] = new Chart(el, cfg);
-}
-const BROWN = ["#7C4A21","#9A6234","#B98A5B","#5F4B39","#3F6B4A","#8A6A8A","#A5553C"];
-const AXIS = {ticks:{color:"#5F4B39",font:{size:13}}, grid:{color:"#E8DFD2"}};
-const NOLEG = {legend:{display:false}};
-
-async function drawStats(){
-  if(!OV || !F) return;
-  let D = null;
-  try{ D = await get(`/api/drift?role=${encodeURIComponent(F.role)}&top=1`); }catch(e){}
-
-  const real = OV.n_real, synth = OV.n_synthetic, tot = OV.n_postings;
-  $("#statsNote").textContent =
-    `Everything below is computed from the ${tot} records currently in the database `
-    + `and recomputes when the corpus changes. Counts appear beside every percentage.`;
-  $("#statsWarn").innerHTML =
-    `<b>Read the split first.</b> ${synth} of ${tot} records are generated test data and `
-    + `${real} are real postings from public job-board APIs. Charts that mix them describe `
-    + `the CORPUS, not the Indian labour market. Where a chart is role-specific it uses `
-    + `${esc(F.role)}.`;
-
-  /* ---------------- KPI strip ---------------- */
-  const yieldPct = YIELD ? YIELD.real_total.yield_pct : null;
-  const kpis = [
-    ["Postings in corpus", tot, `${real} real + ${synth} generated`],
-    ["Real postings", real, `from ${Object.keys(OV.sources).filter(k=>k!=="synthetic").length} job-board sources`],
-    ["Competency terms", OV.skill_dict_size, "closed dictionary; anything outside is unmeasured"],
-    ["Excluded from trends", OV.n_ts_excluded, "modification date only, no creation date"],
-    ["Supported findings", F.n_supported, `after ${esc(F.criteria.correction)} correction`],
-    ["Discarded findings", F.n_discarded, "shown, not hidden"],
-  ];
-  $("#kpis").innerHTML = kpis.map(([k,v,n]) =>
-    `<div class="kpi"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>
-     <div class="n">${esc(n)}</div></div>`).join("");
-
-  /* ---------------- 1. sources ---------------- */
-  const srcE = Object.entries(OV.sources).sort((a,b)=>b[1]-a[1]);
-  $("#capSrc").textContent =
-    `${tot} records. Generated records exist to exercise the pipeline against a known `
-    + `drift curve; they are never presented as observed demand.`;
-  chart_("chSrc", {
-    type:"doughnut",
-    data:{ labels: srcE.map(([k,v]) => `${k} (${v})`),
-           datasets:[{ data: srcE.map(([,v])=>v),
-                       backgroundColor: srcE.map(([k],i) =>
-                         k === "synthetic" ? "#C9B79C" : BROWN[i % BROWN.length]),
-                       borderColor:"#FFFDFA", borderWidth:2 }]},
-    options:{ responsive:true, maintainAspectRatio:false, cutout:"52%",
-      plugins:{ legend:{position:"right", labels:{color:"#2B2118", font:{size:14}, boxWidth:14}},
-        tooltip:{ callbacks:{ label: it =>
-          ` ${it.label}: ${(100*it.parsed/tot).toFixed(1)}% of ${tot}` }}}}
-  });
-
-  /* ---------------- 2. postings per quarter ---------------- */
-  if(D && D.quarters && D.quarters.length){
-    const thin = D.quarters.filter(q=>q.low_confidence).length;
-    $("#capQ").textContent =
-      `${esc(F.role)} postings per quarter. ${thin} of ${D.quarters.length} quarters hold `
-      + `fewer than ${D.thresholds.low_confidence_n} postings and are drawn pale — those `
-      + `cannot support a percentage on their own. Excludes `
-      + `${D.excluded_from_time_series.n_excluded} records with no creation date.`;
-    chart_("chQ", {
-      type:"bar",
-      data:{ labels: D.quarters.map(q=>q.quarter),
-             datasets:[{ data: D.quarters.map(q=>q.n),
-                         backgroundColor: D.quarters.map(q=>q.low_confidence ? "#DCC9AE" : "#7C4A21"),
-                         borderRadius:3 }]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{...NOLEG,
-        tooltip:{ callbacks:{ label: it => {
-          const q = D.quarters[it.dataIndex];
-          return ` ${q.n} postings` + (q.low_confidence ? "  (below threshold)" : ""); }}}},
-        scales:{ y:{beginAtZero:true, title:{display:true, text:"postings", color:"#5F4B39"}, ...AXIS},
-                 x:{...AXIS, grid:{display:false}} }}
-    });
-  } else { $("#capQ").textContent = "No quarterly series for this role."; }
-
-  /* ---------------- 3. most-requested competencies ---------------- */
-  const top = F.supported.concat(F.discarded)
-    .sort((a,b)=>b.latest_share-a.latest_share).slice(0,10);
-  $("#capTop").textContent =
-    `Share of the ${F.latest_n} ${esc(F.role)} postings in ${esc(F.latest_quarter)} that `
-    + `mention each competency. Bars in solid brown passed the decision rule; pale bars `
-    + `are observed but their CHANGE was not supported.`;
-  chart_("chTop", {
-    type:"bar",
-    data:{ labels: top.map(r=>r.skill),
-           datasets:[{ data: top.map(r=>r.latest_share),
-                       backgroundColor: top.map(r=>r.decision==="supported" ? "#7C4A21" : "#D7C3A8"),
-                       borderRadius:3 }]},
-    options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
-      plugins:{...NOLEG, tooltip:{ callbacks:{ label: it => {
-        const r = top[it.dataIndex];
-        return ` ${r.latest_share.toFixed(1)}% — ${r.latest_count} of ${r.latest_n} postings`; }}}},
-      scales:{ x:{beginAtZero:true, max:100, ticks:{callback:v=>v+"%", color:"#5F4B39"},
-                  grid:{color:"#E8DFD2"}},
-               y:{...AXIS, grid:{display:false}} }}
-  });
-
-  /* ---------------- 4. decision outcomes ---------------- */
-  const c = F.correction || {};
-  $("#capDec").textContent =
-    `Of ${c.family_size || "?"} competencies tested for ${esc(F.role)}, how many survive each `
-    + `stage. Correction matters: it is the difference between ${c.n_significant_raw} and `
-    + `${c.n_significant_adjusted}.`;
-  chart_("chDec", {
-    type:"bar",
-    data:{ labels:["Tested","Raw p<.05","After BH","Reported as supported"],
-           datasets:[{ data:[c.family_size||0, c.n_significant_raw||0,
-                             c.n_significant_adjusted||0, F.n_supported],
-                       backgroundColor:["#5F4B39","#B98A5B","#9A6234","#7C4A21"],
-                       borderRadius:3 }]},
-    options:{ responsive:true, maintainAspectRatio:false, plugins:{...NOLEG,
-      tooltip:{ callbacks:{ label: it => ` ${it.parsed.y} competencies` }}},
-      scales:{ y:{beginAtZero:true, title:{display:true, text:"competencies", color:"#5F4B39"}, ...AXIS},
-               x:{...AXIS, grid:{display:false}} }}
-  });
-
-  /* ---------------- 5. collection funnel ---------------- */
-  if(YIELD){
-    const t = YIELD.real_total;
-    $("#capYield").textContent =
-      `Real postings only. ${t.collected} collected, ${t.historically_eligible} can enter the `
-      + `quarterly analysis today (${t.yield_pct}%). More boards raises the first bar; only `
-      + `target-relevant, properly dated postings raise the last. Accessibility to trainees: `
-      + `${esc(t.accessibility_status)}.`;
-    chart_("chYield", {
-      type:"bar",
-      data:{ labels:["Collected","Unique","In a measured role","Has creation date","Historically eligible"],
-             datasets:[{ data:[t.collected, t.unique, t.in_measured_role,
-                               t.date_eligible, t.historically_eligible],
-                         backgroundColor:["#B98A5B","#B98A5B","#9A6234","#9A6234","#7C4A21"],
-                         borderRadius:3 }]},
-      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
-        plugins:{...NOLEG, tooltip:{ callbacks:{ label: it =>
-          ` ${it.parsed.x} of ${t.collected} real postings` }}},
-        scales:{ x:{beginAtZero:true, ...AXIS}, y:{...AXIS, grid:{display:false}} }}
-    });
-  }
-
-  /* ---------------- 6. cities ---------------- */
-  if(LOC && LOC.cities && LOC.cities.length){
-    const cities = LOC.cities.slice(0,10);
-    const mh = new Set((LOC.maharashtra||[]).map(x=>x.city));
-    $("#capCity").textContent =
-      `Advertised workplace locations for ${LOC.n_postings} ${esc(F.role)} postings across `
-      + `${LOC.n_cities} Indian cities. Maharashtra cities are darker. Cities under `
-      + `n=${LOC.min_n} cannot support a per-city percentage. An advertised location does not `
-      + `establish which district's trainees can reach the job.`;
-    chart_("chCity", {
-      type:"bar",
-      data:{ labels: cities.map(c=>c.city + (c.low_confidence ? "  (low n)" : "")),
-             datasets:[{ data: cities.map(c=>c.n),
-                         backgroundColor: cities.map(c=>mh.has(c.city) ? "#7C4A21" : "#C9AE8C"),
-                         borderRadius:3 }]},
-      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false,
-        plugins:{...NOLEG, tooltip:{ callbacks:{ label: it => {
-          const cc = cities[it.dataIndex];
-          return ` ${cc.n} postings` + (cc.state ? ` — ${cc.state}` : ""); }}}},
-        scales:{ x:{beginAtZero:true, ...AXIS}, y:{...AXIS, grid:{display:false}} }}
-    });
-  }
-}
-
-/* --------------------------------------------------------------- drawer */
-let DR = null;
-async function openDrawer(role, skill, quarter, mode){
-  DR = {role, skill, quarter, mode: mode || "matching"};
-  $("#drawer").classList.add("open");
-  $("#dtitle").textContent = `${skill} · ${role} · ${quarter}`;
-  $("#dcalc").textContent = "Loading…";
-  $("#dfilters").innerHTML = ""; $("#dlist").innerHTML = "";
-  try{
-    const match = await get(`/api/postings?role=${encodeURIComponent(role)}&skill=${encodeURIComponent(skill)}&quarter=${encodeURIComponent(quarter)}&limit=200`);
-    const all = await get(`/api/postings?role=${encodeURIComponent(role)}&quarter=${encodeURIComponent(quarter)}&limit=200`);
-    DR.match = match; DR.all = all;
-    $("#dcalc").textContent =
-      `${match.total_matching} matching postings out of ${all.total_matching} eligible postings. `
-      + `Eligible means: occupation ${role}, quarter ${quarter}, excluding records whose only date is a `
-      + `last-modified timestamp.`;
-    $("#dfilters").innerHTML =
-      `<button data-m="matching">Matching: ${match.total_matching}</button>
-       <button data-m="all">All eligible: ${all.total_matching}</button>`;
-    $("#dfilters").querySelectorAll("button").forEach(b =>
-      b.onclick = () => { DR.mode = b.dataset.m; drawDrawerList(); });
-    drawDrawerList();
-  }catch(e){ $("#dcalc").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
-}
-
-function drawDrawerList(){
-  $("#dfilters").querySelectorAll("button").forEach(b =>
-    b.classList.toggle("on", b.dataset.m === DR.mode));
-  const rows = (DR.mode === "matching" ? DR.match : DR.all).postings;
-  $("#dlist").innerHTML = rows.map(p => `
-    <div class="rec" data-id="${esc(p.id)}">
-      <div class="t">${esc(p.title)}</div>
-      <div class="m">${esc(p.company)} · ${esc(p.location)} · ${esc(p.posted_date)}
-        · ${esc(p.source)}${p.source === "synthetic" ? ' <span class="synthtag">SYNTHETIC TEST RECORD</span>' : ""}</div>
-      <div class="m"><a href="#" data-open="1">Show matched sentence and full description</a></div>
-    </div>`).join("") || `<p class="tiny">No records.</p>`;
-  $("#dlist").querySelectorAll(".rec").forEach(card => {
-    card.querySelector("[data-open]").onclick = async e => {
-      e.preventDefault();
-      if(card.dataset.loaded) return;
-      card.dataset.loaded = "1";
-      const full = await get(`/api/posting/${encodeURIComponent(card.dataset.id)}?skill=${encodeURIComponent(DR.skill)}`);
-      const hits = full.match_sentences || [];
-      const snip = hits.length
-        ? `<div class="m" style="margin-top:10px"><b>Matched sentence${hits.length>1?"s":""}:</b></div>`
-          + hits.map(h => `<div class="m">…${esc(h.sentence).replace(
-              new RegExp(esc(h.matched).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"),
-              m => `<mark>${m}</mark>`)}…</div>`).join("")
-        : `<div class="m" style="margin-top:10px">No matched sentence (this record is in the denominator, not the numerator).</div>`;
-      card.insertAdjacentHTML("beforeend",
-        snip + `<pre>${esc(full.description_text || "(no text)")}</pre>`);
-    };
-  });
-}
-function closeDrawer(){ $("#drawer").classList.remove("open"); }
-
-boot().catch(e => fail(e.message));
+boot();
 </script>
 </body>
 </html>

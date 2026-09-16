@@ -144,6 +144,21 @@ app.py (FastAPI)  ->  static/index.html + Chart.js
   PROGRESS.md). `ingest_ats.py` is real, works, and is where new data comes
   from -- add board tokens to `data/boards.json`.
 
+- **THREE PAGES, PROGRESSIVE DISCLOSURE.** `/` explains the project to someone
+  with zero context and carries **no statistics at all** -- no p-value belongs
+  there, not even in a tooltip. `/dashboard` shows counts, sample sizes and
+  plain-language verdicts ("strong evidence" / "not enough data yet").
+  `/method` carries every p-value, both audits and the full limits. The rule:
+  **a reader should never meet a term the previous layer did not teach them.**
+  Plain language is a presentation choice and never licence to drop a sample
+  size, a caveat or the synthetic/real split. See `FRONTEND_PLAN.md`.
+- **CHART CONVENTIONS** follow the UK Government Analysis Function guidance for
+  statistical publications, because the customer is a government department:
+  a headline that states the message (not "Figure 1"), a statistical subtitle
+  saying what the data is and which period, a source line, horizontal text,
+  light gridlines, no broken numerical axes, an accessible data table, and
+  **colour never carrying meaning on its own** -- label the category in words
+  as well.
 - **`share` denominator is postings in that (role, quarter) bucket** — not
   total postings, not skill mentions. Always carry `n` next to it.
 - **`LOW_CONFIDENCE_N = 20`.** Buckets below this are computed but tagged
@@ -182,8 +197,10 @@ UI legend must change with them.
 | `data/postings_real.jsonl` | 125 real postings. Committed (repo is private). |
 | `tools/recall_check.py` | Extraction stats + writes the recall review artifact. |
 | `static/chart.umd.min.js` | Vendored Chart.js. Do not replace with a CDN link. |
-| `app.py` | FastAPI routes + JSON API. |
-| `static/index.html` | Single-page dashboard. |
+| `app.py` | FastAPI routes + JSON API. Serves three pages. |
+| `static/index.html` | **Landing page.** No statistics, no p-values, ever. |
+| `static/dashboard.html` | The evidence dashboard. Accepts `?role=`. |
+| `static/method.html` | **All statistics.** p-values, audits, limits. |
 | `tools/gen_seed.py` | Regenerates `data/postings.jsonl`. Deterministic (seeded). |
 | `data/postings.jsonl` | 600 synthetic postings. Committed. |
 | `data/curriculum.json` | BTech CS syllabus skills. Committed. |

@@ -52,9 +52,40 @@ def _check_role(role):
         raise HTTPException(404, "unknown role %r; known roles: %s" % (role, valid))
 
 
+# Three pages, one server. The split is a progressive-disclosure decision,
+# recorded in FRONTEND_PLAN.md: a reader should never meet a term the previous
+# layer did not teach them.
+#
+#   /          explains the project to someone with zero context. No statistics.
+#   /dashboard the evidence: counts, sample sizes, plain-language verdicts.
+#   /method    how we checked: p-values, corrections, audits, limits.
+#
+# The honesty rules apply identically on all three. Plain language on / is a
+# presentation choice, never permission to drop a sample size or a caveat.
+
+
+def _page(name):
+    # no-store on the pages too, for the same reason as the API: the database
+    # is rebuilt between runs and the pages are edited between demos. A browser
+    # holding yesterday's HTML against today's numbers is the stale-data bug
+    # this project already fixed once at the API layer.
+    return FileResponse(os.path.join(STATIC_DIR, name),
+                        headers={"Cache-Control": "no-store, must-revalidate"})
+
+
 @app.get("/")
 def index():
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return _page("index.html")
+
+
+@app.get("/dashboard")
+def dashboard():
+    return _page("dashboard.html")
+
+
+@app.get("/method")
+def method():
+    return _page("method.html")
 
 
 @app.get("/api/overview")

@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How we checked &middot; Skill Drift Analyzer</title>
+<!-- No charts on this page, so no Chart.js. No webfonts, no CDN, no external
+     host: every page must render with the network off. -->
+<style>
+  :root{
+    --page:#F7F3EC; --panel:#FFFDFA; --ink:#2B2118; --ink2:#5F4B39;
+    --rule:#E0D3C2; --rule2:#CDBBA4;
+    --action:#7C4A21; --action2:#9A6234; --actionbg:#F4E9DD;
+    --warnbg:#FBEFD2; --warnink:#6B4708;
+    --good:#3F6B4A; --goodbg:#E8F0E6; --miss:#A5553C;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--page);color:var(--ink);
+       font:19px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+            "Helvetica Neue",Arial,sans-serif;
+       font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.seclabel{font-family:"Iowan Old Style","Palatino Linotype",Palatino,
+       Georgia,"Times New Roman",serif}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.015em}
+  h1{font-size:40px;line-height:1.1;margin:8px 0 10px}
+  a{color:var(--action)}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px 72px}
+  p{margin:13px 0}
+  .small{font-size:16px;line-height:1.45;color:var(--ink2)}
+  .kicker{font-size:14px;letter-spacing:.14em;font-weight:700;color:var(--action);
+          text-transform:uppercase}
+
+  #prov{background:var(--warnbg);color:var(--warnink);padding:9px 28px;
+        font-size:16px;line-height:1.35;border-bottom:2px solid #E3C78A}
+  #prov .inner{max-width:1120px;margin:0 auto}
+
+  header{padding:30px 0 0}
+  .topnav{margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-block;border:1px solid var(--action);border-radius:8px;
+       padding:9px 17px;font-size:17px;text-decoration:none;cursor:pointer;
+       background:var(--panel);color:var(--action);font-weight:600}
+  .btn:hover{background:var(--actionbg)}
+  select{font:inherit;font-size:17px;padding:9px 12px;border:1px solid var(--rule2);
+         border-radius:8px;background:var(--panel);color:var(--ink)}
+
+  /* sticky contents rail, so a long technical page stays navigable */
+  .toc{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px;padding:14px 16px;
+       background:var(--panel);border:1px solid var(--rule);border-radius:10px}
+  .toc a{font-size:16px;text-decoration:none;border:1px solid var(--rule2);
+         border-radius:20px;padding:5px 13px;background:var(--page)}
+  .toc a:hover{background:var(--actionbg)}
+
+  section{margin-top:46px;scroll-margin-top:16px}
+  .seclabel{font-size:26px;font-weight:600;padding-bottom:9px;
+            border-bottom:2px solid var(--rule2);margin-bottom:10px}
+  .seclabel::before{content:"";display:inline-block;width:5px;height:20px;
+            background:var(--action);margin-right:12px;vertical-align:-3px;
+            border-radius:2px}
+  .panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+         padding:20px 22px;margin-top:14px}
+  .panel.warn{border-left:5px solid var(--warnink);background:#FDF6E7}
+  .panel.rule{border-left:5px solid var(--action)}
+
+  table{border-collapse:collapse;width:100%;font-size:16px;margin-top:10px}
+  th{text-align:left;font-size:14px;letter-spacing:.04em;text-transform:uppercase;
+     color:var(--ink2);font-weight:700;padding:10px;border-bottom:2px solid var(--rule2);
+     white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .scroll{overflow-x:auto}
+  tbody tr:hover{background:var(--actionbg)}
+  .tag{display:inline-block;font-size:14px;border:1px solid var(--rule2);
+       border-radius:20px;padding:2px 10px;background:var(--page);white-space:nowrap}
+  .tag.sup{background:var(--actionbg);color:var(--action);font-weight:700;
+           border-color:var(--rule2)}
+  .tag.low{background:var(--warnbg);color:var(--warnink);font-weight:600}
+  code{font:15px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+       background:#F2EBE1;border:1px solid var(--rule);border-radius:4px;padding:1px 5px}
+  .formula{font:16px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+           background:#F2EBE1;border:1px solid var(--rule);border-radius:8px;
+           padding:12px 14px;margin:12px 0;white-space:pre-wrap}
+  ul{margin:12px 0;padding-left:22px}
+  li{margin:7px 0}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--rule);
+         font-size:15px;color:var(--ink2)}
+  .err{color:#8A2B18}
+</style>
+</head>
+<body>
+
+<div id="prov"><div class="inner" id="provText">Loading...</div></div>
+
+<div class="wrap">
+<header>
+  <div class="kicker">Skill Drift Analyzer &middot; the technical page</div>
+  <h1>How we checked</h1>
+  <p class="small" style="font-size:19px;max-width:48em;color:var(--ink)">
+    This page exists to answer one question: <b>did you just make this up?</b>
+    Everything statistical in the project lives here — the test, the correction,
+    the sensitivity checks, the two accuracy audits, and the things that are
+    still not demonstrated. Numbers are read live from the running database.</p>
+  <div class="topnav">
+    <a class="btn" href="/">&larr; Back to the start</a>
+    <a class="btn" href="/dashboard">The evidence &rarr;</a>
+    <label for="role" class="small" style="margin-left:6px">Role:</label>
+    <select id="role"></select>
+  </div>
+  <div class="toc">
+    <a href="#rule">The decision rule</a>
+    <a href="#pvalues">Every p-value</a>
+    <a href="#fisher">Fisher cross-check</a>
+    <a href="#intervals">Confidence intervals</a>
+    <a href="#threshold">Threshold sensitivity</a>
+    <a href="#audits">Accuracy audits</a>
+    <a href="#funnel">Collection funnel</a>
+    <a href="#verify">Numerical invariants</a>
+    <a href="#limits">Limits</a>
+  </div>
+</header>
+
+<!-- ============================ DECISION RULE ============================ -->
+<section id="rule">
+  <div class="seclabel">The decision rule</div>
+  <p>One procedure decides whether a change is reported as supported. It is
+    declared once in the code — <code>analysis.PRIMARY_RULE</code> — so it cannot
+    be chosen per finding after the fact.</p>
+  <div class="panel rule" id="ruleBox">Loading...</div>
+  <p class="small">Why declare it in one place: reporting two tests without saying
+    which one decides invites picking whichever supports each finding.
+    <code>verify.py</code> asserts that the supported list is a strict consequence
+    of this rule, so a drifting implementation fails loudly instead of quietly.</p>
+  <div class="panel warn">
+    <b>Frozen is not the same as calibrated.</b>
+    <p class="small">Fixing one procedure stops us picking whichever test flatters a
+      finding. It does not show the p-values behave well. Benjamini-Hochberg cannot
+      repair poorly calibrated inputs, and at these sample sizes — with expected
+      cell counts of one to three — the normal approximation is exactly where
+      calibration is doubtful. What would settle it: measuring this procedure's
+      empirical false-discovery rate and power across repeated simulations with
+      known ground truth, or adopting a prespecified exact procedure and
+      recomputing the whole family. <b>Neither is done.</b> Treat these p-values as
+      reproducible, not as validated.</p>
+  </div>
+</section>
+
+<!-- ============================== P-VALUES ============================== -->
+<section id="pvalues">
+  <div class="seclabel">Every p-value we computed</div>
+  <p id="pIntro" class="small">Loading...</p>
+  <p>Raw and adjusted values are both shown and never relabelled as each other.
+    The correction is what separates them, and it is not cosmetic:</p>
+  <div class="panel" id="corrBox">Loading...</div>
+  <div class="panel scroll">
+    <table id="pTable">
+      <thead><tr>
+        <th>Competency</th>
+        <th class="num">Latest</th>
+        <th class="num">Baseline</th>
+        <th class="num">Change</th>
+        <th class="num">p (raw)</th>
+        <th class="num">p (BH-adjusted)</th>
+        <th class="num">p (Fisher)</th>
+        <th>Decision</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="small">Every percentage carries its counts. A row marked
+    <span class="tag low">thin sample</span> sits below the
+    <span id="lcn">low-confidence</span> threshold and cannot support a conclusion
+    on its own, whatever its p-value says.</p>
+</section>
+
+<!-- =============================== FISHER =============================== -->
+<section id="fisher">
+  <div class="seclabel">The Fisher cross-check, and what it does not do</div>
+  <p>The primary test is a pooled two-proportion z-test — a normal approximation.
+    At <span id="fisherN">these</span> sample sizes, a competency near 5%
+    prevalence produces expected cell counts of one to three, which is where that
+    approximation is weakest. So a two-sided <b>Fisher exact test</b> is computed
+    for every competency and displayed alongside.</p>
+  <div class="panel warn">
+    <b>It gates nothing.</b>
+    <p class="small">Fisher is reported as a conservative cross-check, not as a
+      second chance for a finding that failed the primary rule. If a competency
+      passes Fisher and fails the declared rule, it is <i>not</i> reported as
+      supported. Showing a second test that could overturn the first would be
+      exactly the freedom the declared rule exists to remove.</p>
+  </div>
+  <p class="small" id="fisherCount"></p>
+</section>
+
+<!-- ============================== INTERVALS ============================= -->
+<section id="intervals">
+  <div class="seclabel">Confidence intervals</div>
+  <p>Two different intervals are used, for two different quantities, and they are
+    never swapped:</p>
+  <ul>
+    <li><b>Wilson score intervals</b> for a <i>prevalence</i> — "what share of job
+      ads mentioned this". Wilson rather than the textbook normal interval because
+      the normal one misbehaves badly near 0% and 100%, which is where several of
+      these competencies sit.</li>
+    <li><b>Newcombe intervals</b> for the <i>difference</i> between two
+      prevalences — "how much it changed". A difference needs its own interval;
+      reading it off two overlapping prevalence intervals is a known error that
+      systematically understates the evidence.</li>
+  </ul>
+  <div class="panel scroll">
+    <table id="ciTable">
+      <thead><tr><th>Competency</th><th class="num">Latest prevalence (95% Wilson)</th>
+        <th class="num">Change (95% Newcombe)</th><th>Interval crosses zero?</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="small">An interval on the change that crosses zero means the data are
+    consistent with no change at all, in either direction.</p>
+</section>
+
+<!-- ============================== THRESHOLD ============================= -->
+<section id="threshold">
+  <div class="seclabel">Does the answer depend on where we drew the line?</div>
+  <p>Two thresholds are judgement calls: how prevalent a competency must be, and
+    how large a change must be, before it is worth an administrator's attention.
+    Both are re-run across a grid so a reader can see which recommendations
+    survive a different call.</p>
+  <div class="panel" id="sensBox">Loading...</div>
+  <p class="small"><b>Read the claim precisely:</b> this shows the recommendations
+    are <i>robust across the tested grid</i>. It is not a demonstration that the
+    thresholds are valid, and a grid we chose cannot establish that.</p>
+</section>
+
+<!-- =============================== AUDITS ============================== -->
+<section id="audits">
+  <div class="seclabel">Two accuracy audits, reported unflatteringly</div>
+  <p>Every number in this project rests on two mechanical steps: deciding which
+    role a job ad is for, and deciding which skills it mentions. Both were
+    hand-checked against sampled postings. Neither result is good, and both are
+    published as they came out.</p>
+
+  <div class="panel">
+    <h3>Role classification</h3>
+    <p class="small">Of 16 postings the classifier assigned to a role: 5 correct,
+      5 wrong, 6 ambiguous.</p>
+    <table>
+      <thead><tr><th>Counting rule</th><th class="num">Precision</th>
+        <th class="num">Recall</th></tr></thead>
+      <tbody>
+        <tr><td>Clear-cut only (ambiguous excluded)</td><td class="num">50.0% (5 of 10)</td>
+          <td class="num">41.7% (5 of 12)</td></tr>
+        <tr><td>Worst case (every ambiguous call counted against us)</td>
+          <td class="num">31.2% (5 of 16)</td><td class="num">13.2% (5 of 38)</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Known cause: the title rule <code>\bsoftware engineer\b</code>
+      is too broad and pulls in postings that are not the measured role. The fix is
+      deliberately <b>not</b> applied yet — tuning the classifier against verdicts
+      its own author wrote would fit it to this sample rather than improve it.
+      Reproduce with <code>python tools/score_classification.py</code>.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Skill extraction</h3>
+    <table>
+      <thead><tr><th>Counting rule</th><th class="num">Recall</th>
+        <th class="num">Precision</th></tr></thead>
+      <tbody>
+        <tr><td>Best case (uncertain matches counted as real)</td>
+          <td class="num">74.5% (41 of 55)</td><td class="num">100.0%</td></tr>
+        <tr><td>Worst case (uncertain matches counted as noise)</td>
+          <td class="num">72.0% (36 of 50)</td><td class="num">87.8%</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Twelve terms were missed across six postings; nine of them are
+      simply absent from the dictionary — Hibernate/JPA, ArgoCD, Istio, Helm,
+      Gradle, Maven, GitOps, Next.js, Crossplane. The dictionary is
+      <b>closed</b>: a skill not in it is <i>unmeasured</i>, not absent from demand.
+      Reproduce with <code>python tools/score_extraction.py</code>.</p>
+  </div>
+
+  <div class="panel warn">
+    <b>The strongest objection to both audits.</b>
+    <p class="small">The same author wrote the classifier, the dictionary, and the
+      verdicts these scores are computed against — so the audits share their blind
+      spots, and terms the dictionary never contained are exactly the ones its
+      author is least likely to notice missing. Treat the missed lists as a
+      <b>lower bound</b>, and both audits as a machine first pass pending
+      independent human confirmation. Sixteen and six postings are small samples.</p>
+  </div>
+</section>
+
+<!-- =============================== FUNNEL =============================== -->
+<section id="funnel">
+  <div class="seclabel">Collection funnel: how much real data survives</div>
+  <p id="funnelIntro" class="small">Loading...</p>
+  <div class="panel scroll"><table id="yTable">
+    <thead><tr><th>Source</th><th class="num">Collected</th><th class="num">Unique</th>
+      <th class="num">In a measured role</th><th class="num">Has a creation date</th>
+      <th class="num">Historically eligible</th><th>Reachable by trainees</th>
+      <th class="num">Yield</th></tr></thead>
+    <tbody></tbody></table></div>
+  <p class="small"><b>Read the name precisely.</b> This is what can enter the
+    <i>quarterly</i> analysis today, not a verdict on a source. A zero in that
+    column is zero for the historical series only: those records still feed
+    extraction and the cross-sectional views, and can join a prospective series
+    once a starting inventory is frozen, because successive snapshots establish
+    when a requisition was first <i>observed</i> even though the source publishes
+    no creation date. Publication dates and first-observed dates are different
+    quantities and must not be pooled.</p>
+  <p class="small">The last column is the one that actually matters to an
+    administrator, and it is empty. Passing our role and date filters says a record
+    can enter <i>our pipeline</i> — not that the job is one the intended trainees
+    could be hired into. Until that review is done, this funnel's endpoint
+    overstates usefulness.</p>
+  <div class="panel warn">
+    <b>Adding more sources did not fix this.</b>
+    <p class="small">Going from two boards to four raised the postings collected by
+      48 and the historically eligible count by one — the yield percentage
+      <i>fell</i>. The constraint is not how many boards we query; it is how few
+      collected postings are both in a measured role and carry a true creation
+      date.</p>
+  </div>
+</section>
+
+<!-- =============================== VERIFY =============================== -->
+<section id="verify">
+  <div class="seclabel">Numerical invariants</div>
+  <p><code>python verify.py</code> asserts <b>67 numerical invariants</b> across
+    seven groups, and exits non-zero if any fails. It is not a test suite; it
+    protects the one claim the whole project rests on — that every number on
+    screen traces to records in the database.</p>
+  <ul>
+    <li>Every reported share equals its own numerator over its own denominator.</li>
+    <li>Every denominator equals the postings actually in that role-and-quarter
+      bucket — not the role total, not the corpus total.</li>
+    <li>Every bucket below the threshold carries the low-confidence flag.</li>
+    <li>The supported list is exactly what the declared rule produces — no row
+      can be supported on a raw p-value, and none on Fisher.</li>
+    <li>Records excluded from the time series are excluded from every quarterly
+      denominator, and counted in the exclusion total.</li>
+    <li>Provenance counts add up to the corpus, and are derived from the records
+      rather than asserted.</li>
+    <li>A "never seen before" claim carries the denominator of the whole window,
+      not of the latest quarter.</li>
+  </ul>
+  <p class="small">That last one was a real defect this file caught: a
+    never-seen claim was reporting the latest quarter's sample size for a
+    statement spanning the entire window, understating the evidence roughly
+    eightfold.</p>
+</section>
+
+<!-- =============================== LIMITS =============================== -->
+<section id="limits">
+  <div class="seclabel">Limits, stated in full</div>
+  <div class="panel warn">
+    <ul>
+      <li><b>Calibration is not demonstrated.</b> The procedure is frozen and
+        reproducible. Its empirical false-discovery rate and power have not been
+        measured. This is the weakest statistical claim in the project.</li>
+      <li><b>Non-identification.</b> We can show a competency is in demand and
+        untaught. We cannot show that a trainee from a given district could be
+        hired into those jobs — advertised location is not accessibility. This is
+        the strongest argument against the project, and it is unresolved.</li>
+      <li><b>Coverage skew.</b> Real postings come from a handful of company ATS
+        boards that skew heavily toward funded technology companies. They are not a
+        probability sample of Indian employment, and nothing here should be read as
+        a national estimate.</li>
+      <li><b>Closed vocabulary.</b> Extraction runs against a fixed dictionary, so
+        the honest claim is "changing prevalence of <i>tracked</i> competencies",
+        never the discovery of genuinely new skills. Open-vocabulary scanning is
+        run separately as a discovery aid and is counted nowhere.</li>
+      <li><b>Independence.</b> Benjamini-Hochberg assumes valid null p-values and a
+        dependence structure it tolerates. Competencies co-occur within a posting
+        and the same employers recur across periods, so that assumption is not
+        established here. Correcting is an improvement over raw p-values, not a
+        warranty.</li>
+      <li><b>Per-role family.</b> The correction family is every competency
+        measured for one role. It does not control a list pooled across roles,
+        districts, or repeated releases. If those are ever combined, the family
+        must be redeclared.</li>
+      <li><b>The syllabus is a stand-in.</b> <span id="limSyl"></span> No NSQF
+        qualification pack or ITI curriculum has been mapped yet, so no finding
+        here is yet tied to a real qualification.</li>
+      <li><b>Mention is not requirement.</b> A skill named in company boilerplate
+        is counted the same as one in the requirements section. That inflates every
+        share by an unknown amount.</li>
+    </ul>
+  </div>
+  <p class="small">Also worth stating plainly: about "two false alerts in forty
+    tests at p&lt;0.05" — that describes what would happen if all forty nulls were
+    true and each test were properly calibrated. It is not an estimate of how many
+    of our findings are false.</p>
+</section>
+
+<footer id="foot"></footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ util */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => (v == null ? "—" : v.toFixed(1) + "%");
+const pp  = v => (v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + " pp");
+/* p-values are shown to four places and never rounded to "0". A p that small
+   is reported as a bound, because 0.0000 would be false. */
+const pfmt = v => v == null ? "—" : (v < 0.0001 ? "&lt;0.0001" : v.toFixed(4));
+const ci = a => !a ? "—" : "[" + a[0].toFixed(1) + ", " + a[1].toFixed(1) + "]";
+
+async function get(url){
+  const r = await fetch(url, {cache: "no-store"});
+  if(!r.ok) throw new Error(url + " -> HTTP " + r.status);
+  return r.json();
+}
+function fail(msg){
+  $(".wrap").innerHTML = '<p class="err" style="margin-top:48px;font-size:21px">'
+    + 'Data unavailable: ' + esc(msg) + '<br><span class="small">No demonstration '
+    + 'numbers are substituted. Try: python pipeline.py, then restart run.py.'
+    + '</span></p>';
+}
+
+let OV = null;
+
+function provSentence(ov){
+  if(ov.provenance === "mixed")
+    return "<b>Mixed corpus</b> · " + ov.n_postings + " postings: "
+         + ov.n_synthetic + " generated test records + " + ov.n_real
+         + " real records from public job-board APIs. Statistics computed over the "
+         + "whole corpus describe the corpus, not the Indian labour market.";
+  if(ov.provenance === "real")
+    return "<b>Real corpus</b> · " + ov.n_real + " postings from live job-board APIs.";
+  if(ov.provenance === "synthetic")
+    return "<b>Synthetic corpus</b> · all " + ov.n_postings
+         + " postings are generated test records.";
+  return "<b>No data</b> · the corpus is empty.";
+}
+
+/* --------------------------------------------------------- per-role render */
+async function load(){
+  const role = $("#role").value;
+  let F, S, Y;
+  try{
+    F = await get("/api/findings?role=" + encodeURIComponent(role));
+    S = await get("/api/sensitivity?role=" + encodeURIComponent(role));
+    Y = await get("/api/yield");
+  }catch(e){ return fail(e.message); }
+
+  const c = F.correction || {};
+  const alpha = F.criteria ? F.criteria.alpha : OV.thresholds.alpha;
+  const lcn = OV.thresholds.low_confidence_n;
+
+  /* ------------------------------- the rule ------------------------------ */
+  $("#ruleBox").innerHTML =
+    '<div class="formula">'
+    + "primary test   " + esc(F.criteria.test || "pooled two-proportion z-test, two-sided") + "\n"
+    + "correction     " + esc(c.method || "benjamini-hochberg") + ", applied across ALL "
+      + (c.family_size == null ? "—" : c.family_size)
+      + " competencies measured for " + esc(role) + "\n"
+    + "reported when  BH-adjusted p < " + alpha + "\n"
+    + "sensitivity    Fisher exact, two-sided — reported only, gates nothing"
+    + '</div>'
+    + '<p class="small" style="margin-bottom:0">Baseline is pooled across the first '
+    + 'two observed quarters and compared with the latest quarter ('
+    + esc(F.latest_quarter) + ", n = " + F.latest_n + ").</p>";
+
+  /* ------------------------------ p-values ------------------------------- */
+  const rows = (F.supported || []).concat(F.discarded || []);
+  $("#lcn").textContent = "n < " + lcn;
+  /* Say the two numbers apart. The correction family is every competency
+     MEASURED for the role; the table lists the ones that also clear the
+     reporting thresholds. Writing "all N tested" over the table's own length
+     would understate the family, and so understate the correction burden. */
+  const fam = c.family_size;
+  const below = (fam == null) ? null : fam - rows.length;
+  $("#pIntro").innerHTML =
+    "Every competency measured for <b>" + esc(role) + "</b> in "
+    + esc(F.latest_quarter) + " is tested and enters the correction: "
+    + (fam == null ? "—" : "<b>" + fam + "</b>") + " in total. The "
+    + rows.length + " listed below are those that also clear the reporting "
+    + "thresholds (prevalence at least " + F.criteria.min_latest_share_pct
+    + "% or a change of at least " + F.criteria.trend_delta_pp + " pp)"
+    + (below ? "; the other " + below + " sit below both and are corrected for "
+        + "but not listed" : "")
+    + ". Supported and discarded are shown together — publishing the "
+    + "discarded rows is what stops the supported ones from being cherry-picked.";
+
+  $("#corrBox").innerHTML =
+    '<div class="formula">'
+    + "competencies tested            " + (c.family_size == null ? "—" : c.family_size) + "\n"
+    + "significant at raw p < " + alpha + "      " + (c.n_significant_raw == null ? "—" : c.n_significant_raw) + "\n"
+    + "significant after " + esc(c.method || "BH") + "   " + (c.n_significant_adjusted == null ? "—" : c.n_significant_adjusted) + "\n"
+    + "reported as supported          " + F.n_supported + "\n"
+    + "discarded                      " + F.n_discarded
+    + '</div>'
+    + '<p class="small" style="margin-bottom:0">Testing many competencies at once '
+    + 'means some cross p &lt; ' + alpha + ' by chance alone. Without the correction '
+    + 'we would have reported ' + (c.n_significant_raw == null ? "—" : c.n_significant_raw)
+    + '; with it, ' + (c.n_significant_adjusted == null ? "—" : c.n_significant_adjusted)
+    + '.</p>';
+
+  const body = rows.map(r => {
+    const thin = r.low_confidence
+      ? ' <span class="tag low">thin sample</span>' : "";
+    const dec = r.decision === "supported"
+      ? '<span class="tag sup">supported</span>'
+      : '<span class="tag">' + esc(r.decision) + '</span>';
+    return "<tr><td><b>" + esc(r.skill) + "</b>" + thin
+      + (r.taught ? "" : '<div class="small" style="margin:2px 0 0">not taught</div>')
+      + "</td>"
+      + '<td class="num">' + pct(r.latest_share) + '<div class="small">'
+        + r.latest_count + " of " + r.latest_n + "</div></td>"
+      + '<td class="num">' + pct(r.baseline_share) + '<div class="small">'
+        + r.baseline_count + " of " + r.baseline_n + "</div></td>"
+      + '<td class="num">' + pp(r.change_pp) + "</td>"
+      + '<td class="num">' + pfmt(r.p_raw) + "</td>"
+      + '<td class="num"><b>' + pfmt(r.p_adjusted) + "</b></td>"
+      + '<td class="num">' + pfmt(r.p_fisher) + "</td>"
+      + "<td>" + dec + '<div class="small">' + esc(r.reason || "") + "</div></td></tr>";
+  }).join("");
+  $("#pTable").querySelector("tbody").innerHTML = body
+    || '<tr><td colspan="8">No competencies measured for this role.</td></tr>';
+
+  /* ------------------------------- Fisher -------------------------------- */
+  $("#fisherN").textContent = "n = " + F.latest_n;
+  $("#fisherCount").innerHTML =
+    c.n_significant_fisher == null ? "" :
+    "For " + esc(role) + ": " + c.n_significant_adjusted + " competencies pass the "
+    + "declared rule and " + c.n_significant_fisher + " pass the Fisher cross-check. "
+    + "Where the two disagree, the declared rule is what was reported.";
+
+  /* ------------------------------ intervals ------------------------------ */
+  $("#ciTable").querySelector("tbody").innerHTML = rows.map(r => {
+    const crosses = r.diff_ci95 && r.diff_ci95[0] <= 0 && r.diff_ci95[1] >= 0;
+    return "<tr><td>" + esc(r.skill) + "</td>"
+      + '<td class="num">' + pct(r.latest_share) + " " + ci(r.latest_ci95)
+      + '<div class="small">' + r.latest_count + " of " + r.latest_n + "</div></td>"
+      + '<td class="num">' + pp(r.change_pp) + " " + ci(r.diff_ci95) + "</td>"
+      + "<td>" + (r.diff_ci95 == null ? "—"
+          : crosses ? '<span class="tag">yes — consistent with no change</span>'
+                    : '<span class="tag sup">no</span>') + "</td></tr>";
+  }).join("") || '<tr><td colspan="4">Nothing measured for this role.</td></tr>';
+
+  /* --------------------------- threshold grid ---------------------------- */
+  const cells = S.cells || [];
+  const always = cells.length
+    ? cells.map(x => x.skills).reduce((a, b) => a.filter(s => b.indexOf(s) !== -1))
+    : [];
+  const shares = S.grid.prevalence, changes = S.grid.change;
+  let grid = '<table><thead><tr><th>minimum prevalence &darr; / minimum change &rarr;</th>'
+    + changes.map(ch => '<th class="num">' + ch + " pp</th>").join("") + "</tr></thead><tbody>";
+  shares.forEach(sh => {
+    grid += "<tr><td><b>" + sh + "%</b></td>"
+      + changes.map(ch => {
+          const cell = cells.filter(x => x.min_share_pct === sh && x.min_change_pp === ch)[0];
+          return '<td class="num">' + (cell ? cell.n : "—") + "</td>";
+        }).join("") + "</tr>";
+  });
+  grid += "</tbody></table>";
+  $("#sensBox").innerHTML =
+    '<p style="margin-top:0">Current rule: prevalence at least '
+    + S.current_rule.min_share_pct + "%, change at least "
+    + S.current_rule.min_change_pp + " pp. Each cell is how many recommendations "
+    + "that combination would produce for <b>" + esc(role) + "</b>.</p>"
+    + grid
+    + '<p class="small" style="margin-bottom:0">'
+    + (always.length
+        ? "Survives all " + S.n_cells + " cells: <b>" + always.map(esc).join(", ")
+          + "</b>. These are the recommendations that do not depend on where the "
+          + "line was drawn within this grid."
+        : "No recommendation survives every cell in the grid for this role.")
+    + "</p>";
+
+  /* ------------------------------- funnel -------------------------------- */
+  const t = Y.real_total;
+  $("#funnelIntro").innerHTML =
+    "<b>" + esc(Y.title) + ".</b> Real postings only. " + t.collected
+    + " collected, " + t.historically_eligible + " can enter the quarterly analysis "
+    + "today — a yield of " + t.yield_pct + "%. Measured roles: "
+    + Y.measured_roles.map(esc).join(", ") + ".";
+  $("#yTable").querySelector("tbody").innerHTML = Y.by_source.map(r =>
+    "<tr><td>" + esc(r.source) + "</td>"
+    + '<td class="num">' + r.collected + "</td>"
+    + '<td class="num">' + r.unique + "</td>"
+    + '<td class="num">' + r.in_measured_role + "</td>"
+    + '<td class="num">' + r.date_eligible + "</td>"
+    + '<td class="num"><b>' + r.historically_eligible + "</b></td>"
+    + '<td><span class="tag">' + esc(r.accessibility_status) + "</span></td>"
+    + '<td class="num">' + r.yield_pct + "%</td></tr>").join("");
+}
+
+/* ----------------------------------------------------------------- boot */
+async function boot(){
+  try{ OV = await get("/api/overview"); }
+  catch(e){ return fail(e.message); }
+  if(!OV.n_postings) return fail("the corpus is empty");
+
+  $("#provText").innerHTML = provSentence(OV);
+  $("#limSyl").innerHTML = esc(OV.curriculum.name) + " is marked <i>"
+    + esc(OV.curriculum.source) + "</i>"
+    + (String(OV.curriculum.source).indexOf("synthetic") !== -1
+        ? " — hand-assembled from representative Indian BTech CSE programmes, "
+          + "not an official published curriculum." : ".");
+
+  const sel = $("#role");
+  sel.innerHTML = OV.roles.map(r => '<option>' + esc(r) + "</option>").join("");
+  /* Deep-link from the dashboard or the landing page: /method?role=... */
+  const want = new URLSearchParams(location.search).get("role");
+  sel.value = (want && OV.roles.indexOf(want) !== -1) ? want
+            : (OV.roles.indexOf("Data Analyst") !== -1 ? "Data Analyst" : OV.roles[0]);
+  sel.onchange = load;
+
+  $("#foot").textContent =
+    "Skill Drift Analyzer · database built " + OV.built_at
+    + " · observed through " + OV.observed_through
+    + " · reproduce every figure on this page with: python verify.py, "
+    + "python tools/score_classification.py, python tools/score_extraction.py";
+
+  await load();
+}
+boot();
+</script>
+</body>
+</html>

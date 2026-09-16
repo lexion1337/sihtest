@@ -3,7 +3,7 @@
 **Update this file at the end of every session.** Read `CLAUDE.md` first — it
 holds the problem statement, the honesty rules, and the architecture.
 
-Last updated: **2026-09-16** (session 4)
+Last updated: **2026-09-16** (session 5 -- frontend rebuild)
 Deadline: **SIH internal hackathon, 16 September 2026 — TOMORROW.**
 Venue: REVA Rangasthala / Amphi Theatre, 8:30 AM - 4:30 PM.
 Bar for internal: **30% of the project ready**, measured against the problem
@@ -13,11 +13,24 @@ statement's 15 required elements, not against lines of code.
 
 ## TL;DR
 
-`python run.py` serves the dashboard on http://127.0.0.1:8000. It works.
+`python run.py` serves **three pages** on http://127.0.0.1:8000. It works.
 
-**The corpus is now MIXED: 725 postings = 600 synthetic + 125 REAL.** The real
+| Route | Who it is for | Statistics shown |
+|---|---|---|
+| `/` | anyone, zero context | **none** -- no p-values anywhere |
+| `/dashboard` | interested judge | counts, sample sizes, plain verdicts |
+| `/method` | teacher, statistician, sceptic | **everything** -- p-values, BH, Fisher, audits |
+
+Built to the plan in `FRONTEND_PLAN.md`, which is now DONE. The three-second
+image (a job ad, the syllabus, the missing skill lit between them) finally
+exists, on `/`. Chart conventions follow the UK Government Analysis Function
+guidance for statistical publications -- headline that states the message,
+statistical subtitle, source line, and colour never carrying meaning on its
+own -- because the audience is a government department.
+
+**The corpus is MIXED: 747 postings = 600 synthetic + 147 REAL.** The real
 ones come from public ATS job-board APIs (Greenhouse, Lever), ingested by
-`ingest_ats.py` on 9 September. The provenance banner reads "MIXED DATA" and is
+`ingest_ats.py`. The provenance banner reads "MIXED DATA" and is
 computed from the source counts of what was actually loaded, not a hardcoded
 flag, so it cannot lie about this.
 
@@ -641,22 +654,44 @@ prints sample titles and locations so identity can be checked. Final corpus:
 
 ---
 
-## NEXT SESSION: FRONTEND REBUILD -- SEE `FRONTEND_PLAN.md`
+## FRONTEND REBUILD: DONE (session 5)
 
-The decision is made and written down in `FRONTEND_PLAN.md`. Read that file
-before touching the front end; it is written for a session starting cold.
+`FRONTEND_PLAN.md` is executed. All five build steps are complete and the
+analysis is untouched, exactly as the plan required.
 
-One-line summary: the current page opens with `benjamini-hochberg-adjusted
-p = 0.0225`, so a judge with no context cannot get in. Split into three layers
--- `/` landing with NO statistics and no jargon, `/dashboard` with counts and
-plain-language verdicts, `/method` with every p-value and the audits. Nothing
-in the analysis changes.
+What exists now:
+- **`/`** -- landing page, no statistics and no p-values anywhere, not even in
+  a tooltip. Carries the three-second image, the plain-language problem
+  statement, live headline numbers, the role explorer (search + all four roles
+  as example chips), how-it-works, the discarded-findings beat in plain words,
+  and the limits box.
+- **`/dashboard`** -- the previous single page, moved. Accepts `?role=`,
+  verdicts now read "strong evidence" / "not enough data yet", p-values moved
+  out of the table rows into the featured detail and the drawer.
+- **`/method`** -- new. Every p-value (raw, BH-adjusted, Fisher) for all
+  competencies, Wilson and Newcombe intervals, the threshold grid, both
+  accuracy audits, the collection funnel, the 67 invariants and the full limits.
+
+Defects found and fixed while building:
+- the evidence quote rendered as `[object Object]` (`match_sentences` returns
+  `{sentence, matched}`, not a string)
+- the highlight used the canonical term, so a posting saying "GenAI" for the
+  skill "LLM" highlighted nothing; it now highlights the alias that fired
+- `/method` said "all 29 competencies tested" while the correction family is
+  38 -- understating the correction burden. Now states both, and what the
+  other 9 are
+- the landing page called the sources "company hiring pages" and counted them
+  as 2; greenhouse and lever are job-board SYSTEMS, not employers
+- page responses were cacheable, so a rebuilt database could be read against
+  stale HTML. `no-store` now applies to the pages as well as the API
+- `run.py` printed "DEMO DATA: synthetic seed corpus" months after 147 real
+  postings were ingested. The banner is now derived from the corpus
 
 ---
 
 ## THE SINGLE NEXT TASK
 
-**Manually audit the 107 unclassified real postings.**
+**Manually audit the 131 unclassified real postings.**
 
 It is the only remaining item from the review that a person must do and code
 cannot. At 107 records it is an afternoon, and it is more useful than any
@@ -680,6 +715,15 @@ After that, in order:
    dates, not newly opened roles — conflating those manufactures a hiring spike.
 
 ## SESSION LOG
+
+**Session 5 - 2026-09-16.** Executed `FRONTEND_PLAN.md`: three routes, new
+landing page, new method page, plain-language verdicts and `?role=` deep
+links on the dashboard. Added one chart to the landing page built to the UK
+Government Analysis Function conventions for statistical charts (headline
+stating the message, statistical subtitle, source line, horizontal labels,
+an accessible data table, and taught/not-taught spelled out in words so
+colour never carries meaning alone). Fixed six defects, listed above. 67
+invariants still hold; no external hosts on any page.
 
 **Session 4 - 2026-09-16.** Implemented the external statistical and design
 review. Added BH correction, Fisher exact cross-check, Newcombe change

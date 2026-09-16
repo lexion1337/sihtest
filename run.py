@@ -47,6 +47,26 @@ def prepare(force=False):
         print("[2/2] database up to date: data/skills.db")
 
 
+def _corpus_line():
+    """Describe the corpus FROM the corpus, never from a hardcoded string.
+
+    This line read "DEMO DATA: synthetic seed corpus" long after 147 real
+    postings had been ingested. That is the mislabelling honesty rule 3
+    forbids in the UI, and it has no more business being wrong in the console.
+    """
+    import analysis
+    import pipeline
+    ov = analysis.overview(pipeline.connect())
+    return {
+        "mixed": "MIXED CORPUS: %d generated test records + %d real postings."
+                 % (ov["n_synthetic"], ov["n_real"]),
+        "real": "REAL CORPUS: %d postings from live job-board APIs." % ov["n_real"],
+        "synthetic": "DEMO DATA: all %d postings are generated test records."
+                     % ov["n_postings"],
+        "empty": "NO DATA: the corpus is empty.",
+    }.get(ov["provenance"], "UNKNOWN PROVENANCE: %r" % ov["provenance"])
+
+
 def main():
     ap = argparse.ArgumentParser(description="Skill Drift Analyzer")
     ap.add_argument("--host", default="127.0.0.1")
@@ -66,7 +86,11 @@ def main():
 
     print("\n" + "=" * 66)
     print("  Skill Drift Analyzer  ->  http://%s:%d" % (args.host, args.port))
-    print("  DEMO DATA: synthetic seed corpus. scraper.fetch() is still a stub.")
+    print("     landing   http://%s:%d/" % (args.host, args.port))
+    print("     evidence  http://%s:%d/dashboard" % (args.host, args.port))
+    print("     method    http://%s:%d/method" % (args.host, args.port))
+    print("  %s" % _corpus_line())
+    print("  scraper.fetch() is still a stub; real data comes from ingest_ats.py.")
     print("  Ctrl+C to stop.")
     print("=" * 66 + "\n")
 

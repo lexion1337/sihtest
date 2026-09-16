@@ -1,5 +1,14 @@
 # FRONTEND REBUILD PLAN
 
+> **STATUS: EXECUTED on 2026-09-16.** All five build steps below are done and
+> the analysis was not touched. Kept as the record of WHY the front end is
+> shaped this way -- read it before changing the structure, and see the session
+> 5 entry in `PROGRESS.md` for what was actually built and what broke on the
+> way. One addition beyond this plan: a single chart on `/`, built to the UK
+> Government Analysis Function conventions for statistical charts. It shows
+> counts only, so the "no statistics on the landing page" rule below still
+> holds -- there is no p-value on `/`.
+
 **Decided 2026-09-16. Written to disk deliberately so it survives a context
 compact — a session starting cold should be able to execute this without the
 conversation that produced it.**
