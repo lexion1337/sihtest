@@ -194,6 +194,46 @@ input,textarea,select{border-color:var(--control)}
 #prov .body{font-size:var(--t-md);line-height:1.45;flex:1 1 380px;min-width:0}
 #prov b{font-weight:600}
 
+/* ------------------------------------------------------- site header ---
+   The three pages used to be wired together with "<- Start here" and "How we
+   checked ->", which is back/next: it tells a reader where they can step, never
+   what the site CONTAINS. Opening any page showed no map of the whole.
+
+   This is a standing header on every page instead -- the wordmark, and the
+   three sections always visible with the current one marked. It is the same
+   markup and the same component everywhere, so the site cannot present
+   different navigation on different pages.
+
+   Sticky, because two of the three pages are long and the way back should not
+   require scrolling to find.                                                */
+.sitenav{position:sticky;top:0;z-index:30;background:var(--ground);
+         border-bottom:1px solid var(--rule2)}
+.sitenav .inner{max-width:1240px;margin:0 auto;padding:12px 28px;
+                display:flex;gap:var(--s5);align-items:center;
+                justify-content:space-between;flex-wrap:wrap}
+.sitenav .brand{text-decoration:none;color:inherit;display:block;line-height:1.15}
+.sitenav .brand .mark{font-family:var(--serif);font-weight:600;
+                      font-size:var(--t-lg);letter-spacing:-.015em;
+                      display:block;color:var(--ink)}
+.sitenav .brand .sub{font-family:var(--sans);font-size:var(--t-xs);
+                     letter-spacing:.1em;text-transform:uppercase;
+                     color:var(--ink2);display:block;margin-top:2px}
+.sitenav nav{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center}
+.sitenav nav a{font-family:var(--sans);font-size:var(--t-md);font-weight:600;
+               text-decoration:none;color:var(--ink2);padding:9px 16px;
+               border-radius:8px;border:1px solid transparent;white-space:nowrap}
+.sitenav nav a:hover{background:var(--actionbg);color:var(--action)}
+/* The current section is marked by weight, colour AND a rule, so it does not
+   depend on colour alone. */
+.sitenav nav a.on{background:var(--surface);color:var(--action);
+                  border-color:var(--rule2);box-shadow:var(--lift-1)}
+.sitenav nav a.on::after{content:"";display:block;height:2px;margin-top:5px;
+                         background:var(--action);border-radius:2px}
+@media (max-width:640px){
+  .sitenav .inner{padding:10px 16px;gap:var(--s3)}
+  .sitenav nav a{padding:7px 11px;font-size:var(--t-sm)}
+}
+
 /* ------------------------------------------------------------ containers */
 /* Cards get light; borders keep doing the structural work. */
 .panel,.figure,.try,.n,.doc,.cardchart,.kpi,.chip{box-shadow:var(--lift-1)}
