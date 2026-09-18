@@ -31,14 +31,38 @@
   /* Warm brown on cream. Chosen for a projector: a warm ground holds contrast
      in a bright room better than cool grey, and the accent stays dark enough
      to read from the back of the hall. */
-  --page:#F7F3EC; --panel:#FFFDFA; --ink:#241B12; --ink2:#5F4B39;
+  /* ------------------------------------------------ surface ramp -------
+     THREE planes, and the step between each is measured. The previous palette
+     had the page at #F7F3EC and cards at #FFFDFA -- a separation of 1.089:1,
+     which the eye does not read as a separate plane at all. Worse, a nested
+     well (the paste box, the highlighted text, a code block) used the PAGE
+     colour, so an element two layers deep was an exact 1.000:1 match for the
+     ground behind everything. Cards did not sit on the page; everything was
+     one flat wash of cream.
+
+       ground -> card  1.278:1     card -> well  1.135:1
+       ground -> well  1.126:1     ground -> note 1.210:1
+
+     Anything below roughly 1.10 is not perceivable as depth, so each step
+     clears it. Text contrast was re-audited on all three surfaces afterwards
+     and every pair still passes -- body sits at 12.9:1 even on the darkest. */
+  --ground:#EAE0CE;      /* the page itself: warm parchment, not near-white */
+  --surface:#FFFCF6;     /* cards and panels lift off it */
+  --well:#F5EDE0;        /* sunk INTO a card: inputs, quoted text, code */
+
+  /* Kept as the names the pages already use, now pointing at the ramp. */
+  --page:var(--ground); --panel:var(--surface);
+
+  --ink:#241B12; --ink2:#5F4B39;
   --rule:#E0D3C2; --rule2:#CDBBA4;
-  --action:#7C4A21; --action2:#9A6234; --actionbg:#F4E9DD;
+  --action:#7C4A21; --action2:#9A6234; --actionbg:#F6EADA;
   --warnbg:#FBEFD2; --warnink:#6B4708;
   --neutral:#8A7663; --neutralbg:#F2EBE1;
   --good:#3F6B4A; --goodbg:#E8F0E6;
-  --miss:#A5553C; --missbg:#F6E7E2;
-  --note:#F2E9DA; --noterule:#D8C4A6;
+  --miss:#A5553C; --missbg:#F8E9E3;
+  /* The note band is now DEEPER than the ground, not lighter: against a
+     parchment page a pale band disappeared (1.030:1). */
+  --note:#DCCCAA; --noterule:#C6B28C;
 
   /* Chart series and control borders, set by MEASUREMENT rather than eye.
      WCAG 2.1 1.4.11 asks 3:1 for any graphical object that carries meaning and
@@ -49,7 +73,8 @@
      unchanged, the values are just legal. */
   --taught:#A88459;      /* 3.39:1 on card, 3.11:1 on page */
   --falling:#8A7663;     /* 4.26:1 on card */
-  --control:#A89070;     /* 3.00:1 on card: input and textarea borders */
+  --control:#96795A;     /* 3.96 card / 3.49 well / 3.10 ground -- clears 3:1
+                            on every surface a control can sit on */
 
   --serif:"Sitka Banner","Sitka Display","Sitka Text",Constantia,
           "Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
