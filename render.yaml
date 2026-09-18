@@ -1,0 +1,26 @@
+# Render blueprint.
+#
+# Why this host and not the serverless one: on Render the app runs as a normal
+# long-lived process with a writable filesystem, which is exactly what the
+# project already assumes. `python run.py` builds the SQLite database from the
+# JSONL corpora and then serves -- unchanged, the same command used locally.
+# No ASGI shim, no /tmp database, no path rewriting.
+#
+# The database is still never committed. It is rebuilt on each boot, which
+# takes a few seconds and guarantees the numbers match the corpora rather than
+# a stale artifact.
+services:
+  - type: web
+    name: skill-drift-analyzer
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # run.py already binds --host/--port, so the entry point is identical to
+    # the local one. $PORT is supplied by the platform.
+    startCommand: python run.py --host 0.0.0.0 --port $PORT
+    # /api/health returns the live posting count, so a boot that comes up with
+    # an empty corpus fails the check instead of quietly serving nothing.
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.1"
