@@ -47,23 +47,30 @@ import app as _app  # noqa: E402  (must follow the build above)
 _fastapi = _app.app
 
 
-async def app(scope, receive, send):
-    """ASGI entry point, with one defensive path fix.
+# ---------------------------------------------------------------- path fix
+# Vercel's "rewrites" REPLACE the request path with the destination, so every
+# request arrives at the app as "/api/index" -- matching no route, and
+# returning FastAPI's own 404 on every page and every endpoint. The app is
+# running correctly the whole time, which is what makes it hard to spot.
+#
+# The obvious alternative, builds + routes, proxies and preserves the path,
+# but never finished building here. So the path is repaired inside the app.
+#
+# This is deliberately a Starlette http middleware rather than an ASGI wrapper
+# function: it keeps the exported `app` a real FastAPI instance, which is what
+# the host introspects to decide how to serve it. BaseHTTPMiddleware runs above
+# the router, so editing scope["path"] here still decides which route matches.
+#
+# The prefix test is narrow enough that it can never shadow a path the app
+# would otherwise serve.
+@_fastapi.middleware("http")
+async def _strip_mount_path(request, call_next):
+    path = request.scope.get("path", "")
+    if path == "/api/index" or path.startswith("/api/index/"):
+        fixed = path[len("/api/index"):] or "/"
+        request.scope["path"] = fixed
+        request.scope["raw_path"] = fixed.encode()
+    return await call_next(request)
 
-    vercel.json uses `routes`, which proxies and preserves the visitor's path.
-    If it is ever switched back to `rewrites`, the path is REPLACED by the
-    destination and every request arrives as "/api/index" -- which matches no
-    route and returns FastAPI's own 404 on every page. That happened once and
-    the failure is silent and confusing, because the app is running perfectly
-    and still answers nothing.
 
-    So: if the mount path arrives instead of the real one, strip it. The check
-    is deliberately narrow -- it rewrites only this exact prefix, and never
-    touches a path the app could legitimately serve.
-    """
-    if scope.get("type") in ("http", "websocket"):
-        path = scope.get("path", "")
-        if path == "/api/index" or path.startswith("/api/index/"):
-            rest = path[len("/api/index"):]
-            scope = dict(scope, path=rest or "/", raw_path=(rest or "/").encode())
-    await _fastapi(scope, receive, send)
+app = _fastapi
