@@ -44,4 +44,26 @@ if not os.path.exists(DB):
 
 import app as _app  # noqa: E402  (must follow the build above)
 
-app = _app.app
+_fastapi = _app.app
+
+
+async def app(scope, receive, send):
+    """ASGI entry point, with one defensive path fix.
+
+    vercel.json uses `routes`, which proxies and preserves the visitor's path.
+    If it is ever switched back to `rewrites`, the path is REPLACED by the
+    destination and every request arrives as "/api/index" -- which matches no
+    route and returns FastAPI's own 404 on every page. That happened once and
+    the failure is silent and confusing, because the app is running perfectly
+    and still answers nothing.
+
+    So: if the mount path arrives instead of the real one, strip it. The check
+    is deliberately narrow -- it rewrites only this exact prefix, and never
+    touches a path the app could legitimately serve.
+    """
+    if scope.get("type") in ("http", "websocket"):
+        path = scope.get("path", "")
+        if path == "/api/index" or path.startswith("/api/index/"):
+            rest = path[len("/api/index"):]
+            scope = dict(scope, path=rest or "/", raw_path=(rest or "/").encode())
+    await _fastapi(scope, receive, send)
