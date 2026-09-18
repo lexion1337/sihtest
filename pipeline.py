@@ -35,7 +35,11 @@ DATA_DIR = os.path.join(HERE, "data")
 POSTINGS_PATH = os.path.join(DATA_DIR, "postings.jsonl")
 # What build() loads when it is not told otherwise.
 POSTINGS_GLOB = os.path.join(DATA_DIR, "postings*.jsonl")
-DB_PATH = os.path.join(DATA_DIR, "skills.db")
+# The database is a DERIVED artifact and is never committed. On a read-only
+# host (a serverless deploy, for example) the project directory cannot be
+# written to, so the path is overridable and the DB is rebuilt into a writable
+# location at start-up. Locally this env var is unset and nothing changes.
+DB_PATH = os.environ.get("SKILL_DRIFT_DB") or os.path.join(DATA_DIR, "skills.db")
 
 SCHEMA = """
 DROP TABLE IF EXISTS postings;
