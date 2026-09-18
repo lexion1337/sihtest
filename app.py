@@ -11,13 +11,14 @@ cannot be drilled into, it should not be on screen.
 
 import os
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import analysis
 import phrases
 import pipeline
+import skills
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
@@ -271,6 +272,81 @@ def api_posting(posting_id: str, skill: str = Query(None)):
         out["match_sentences"] = skills_mod.match_sentences(text or "", skill)
         out["matched_skill"] = skill
     return out
+
+
+@app.post("/api/extract")
+def api_extract(payload: dict = Body(...)):
+    """Run the extractor over TEXT THE VISITOR SUPPLIES, live.
+
+    This exists to answer the question the click-through evidence cannot: not
+    "are your numbers real" but "does your thing actually work, on text you
+    have never seen". A judge can paste a job advertisement off their own phone
+    and watch the same deterministic pass that produced every figure on the
+    site run over it.
+
+    Nothing here touches the corpus or any stored number, and nothing is
+    written. It is the measurement instrument, exposed.
+
+    It also returns the terms it could NOT match. A closed dictionary means an
+    untracked skill is UNMEASURED, not absent, and the honest way to show that
+    is to hand the reader the words we missed rather than only the ones we hit.
+    """
+    text = (payload or {}).get("text") or ""
+    text = text[:20000]                      # generous; bounded so a paste cannot stall a worker
+    if not text.strip():
+        raise HTTPException(400, "no text supplied")
+
+    taught = {t.lower() for t in CURRICULUM["taught_skills"]}
+    found = []
+    for name in skills.extract_skills(text):
+        hits = skills.match_sentences(text, name)
+        found.append({
+            "skill": name,
+            "category": skills.skill_category(name),
+            "taught": name.lower() in taught,
+            "evidence": hits[0]["sentence"] if hits else None,
+            "matched_text": hits[0]["matched"] if hits else None,
+        })
+
+    # Technical-looking phrases the dictionary does not carry. Discovery only:
+    # these are candidates for a human to adjudicate, never counted anywhere.
+    known = phrases._known_surface_forms()
+    matched_low = {f["skill"].lower() for f in found}
+    # Tokens of everything already matched, so a phrase that merely brushes
+    # past a term we DID find ("dashboards in Power") is not paraded as a miss.
+    matched_tokens = {w for k in matched_low for w in k.split() if len(w) > 2}
+
+    cand = {}
+    for phrase, surface, _sent in phrases._candidate_phrases(text):
+        if phrase in known or phrase in matched_low:
+            continue
+        if any(phrase in k or k in phrase for k in matched_low):
+            continue
+        if set(phrase.split()) & matched_tokens:
+            continue
+        cand.setdefault(phrase, surface)
+
+    # Prefer the shortest form: "ArgoCD" is a better candidate to adjudicate
+    # than "ArgoCD and Istio", and listing both is noise.
+    unknown = []
+    for phrase in sorted(cand, key=lambda x: (len(x), x)):
+        if any(kept in phrase for kept in unknown):
+            continue
+        unknown.append(phrase)
+    unknown = [cand[p] for p in unknown][:12]
+
+    return {
+        "n_chars": len(text),
+        "dictionary_size": skills.skill_count(),
+        "n_found": len(found),
+        "n_not_taught": sum(1 for f in found if not f["taught"]),
+        "found": found,
+        "untracked_candidates": unknown,
+        "curriculum": CURRICULUM["name"],
+        "note": ("Deterministic dictionary match, no model and no network. A "
+                 "term outside the dictionary is unmeasured, not absent - the "
+                 "untracked list shows what that cost on this text."),
+    }
 
 
 @app.get("/api/health")

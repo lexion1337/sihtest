@@ -82,6 +82,39 @@
   details.data td{padding:7px 8px;border-bottom:1px solid var(--rule)}
   details.data td.num{text-align:right;font-variant-numeric:tabular-nums}
 
+
+  /* ------------------------------ try it -------------------------------- */
+  /* The one part of the page that is not a document. A reader can paste any
+     job advertisement and watch the same deterministic pass that produced
+     every number on the site run over text nobody has seen before. */
+  .try{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
+       padding:22px 24px;margin-top:18px}
+  .try textarea{width:100%;min-height:150px;resize:vertical;font:16px/1.55 var(--text);
+       color:var(--ink);background:var(--page);border:1px solid var(--rule2);
+       border-radius:8px;padding:14px 16px}
+  .try textarea:focus{outline:2px solid var(--action);outline-offset:1px}
+  .tryrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .tryrow .btn{padding:9px 18px;font-size:16px}
+  .trystat{font-family:var(--sans);font-size:15px;color:var(--ink2)}
+  .result{margin-top:20px;border-top:1px solid var(--rule);padding-top:18px}
+  .result[hidden]{display:none}
+  .scoreline{font-size:22px;font-family:var(--serif);font-weight:600;
+             line-height:1.3;margin-bottom:4px}
+  .chips2{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+  .sk{font-family:var(--sans);font-size:15px;border-radius:20px;padding:5px 13px;
+      border:1px solid var(--rule2);background:var(--page);cursor:default}
+  .sk.no{background:var(--missbg);border-color:#E2C3B8;color:#7A3A26;font-weight:600}
+  .sk.yes{background:var(--goodbg);border-color:#BBD0BB;color:#2F5638}
+  .sk .why{font-size:13px;opacity:.75}
+  .marked{background:var(--page);border:1px solid var(--rule);border-radius:8px;
+          padding:14px 16px;font-size:16px;line-height:1.7;max-height:260px;
+          overflow:auto;white-space:pre-wrap}
+  .marked mark{background:#F3DFC9;border-bottom:2px solid var(--action);
+               padding:0 2px;border-radius:2px;font-weight:600;color:var(--ink)}
+  .untracked{font-family:var(--sans);font-size:15px;color:var(--ink2);margin-top:14px;
+             background:var(--warnbg);border-radius:8px;padding:11px 14px}
+  .spin{font-family:var(--sans);font-size:15px;color:var(--ink2)}
+
   /* ----------------------------- role explorer ---------------------------- */
   .search{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
   .search input{font:inherit;font-size:18px;padding:11px 14px;
@@ -95,6 +128,15 @@
         border-radius:8px;padding:14px 16px;cursor:pointer;text-decoration:none;
         color:inherit;font:inherit}
   .chip:hover{background:var(--actionbg)}
+  .chip.on{background:var(--actionbg);border-left-width:9px;
+           box-shadow:inset 0 0 0 1px var(--rule2)}
+  .nowshowing{font-family:var(--sans);font-size:15px;color:var(--ink2);
+              margin-top:10px;display:flex;gap:10px;align-items:center;
+              flex-wrap:wrap}
+  .nowshowing b{color:var(--action)}
+  .pill{font-family:var(--sans);font-size:14px;border:1px solid var(--rule2);
+        border-radius:20px;padding:3px 11px;background:var(--panel)}
+  .swapping{opacity:.35;transition:opacity .12s ease}
   .chip .r{font-size:19px;font-weight:600}
   .chip .d{font-size:15px;color:var(--ink2);margin-top:3px}
   .chip[hidden]{display:none}
@@ -150,6 +192,7 @@
 <!-- ===================== THE THREE-SECOND IMAGE ===================== -->
 <section>
   <div class="seclabel">What we found, in one picture</div>
+  <div class="nowshowing" id="nowShowing"></div>
   <div class="image" id="image">
     <div class="doc" id="docAd"><div class="lbl">A job advertisement</div>
       <p class="small">Loading...</p></div>
@@ -214,6 +257,31 @@
         <th>In the syllabus?</th></tr></thead><tbody></tbody></table>
     </details>
     <div class="fig-src" id="figSrc"></div>
+  </div>
+</section>
+
+<!-- ============================== TRY IT =============================== -->
+<section>
+  <div class="seclabel">Try it yourself</div>
+  <p>Paste any job advertisement &mdash; one off your phone, one you wrote, anything
+    &mdash; and the same skill extractor that produced every number on this site
+    will run over it. Nothing is stored and nothing is sent anywhere.</p>
+  <div class="try">
+    <textarea id="tryText" spellcheck="false"
+      placeholder="Paste a job advertisement here, or load a real one with the button below."></textarea>
+    <div class="tryrow">
+      <button class="btn primary" id="tryRun">Find the skills &rarr;</button>
+      <button class="btn" id="tryExample">Load a real job ad</button>
+      <button class="btn" id="tryClear">Clear</button>
+      <span class="trystat" id="tryStat"></span>
+    </div>
+    <div class="result" id="tryResult" hidden>
+      <div class="scoreline" id="tryScore"></div>
+      <p class="small" id="trySub" style="margin:2px 0 0"></p>
+      <div class="chips2" id="trySkills"></div>
+      <div class="marked" id="tryMarked"></div>
+      <div class="untracked" id="tryUntracked" hidden></div>
+    </div>
   </div>
 </section>
 
@@ -298,6 +366,10 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 let OV_TOTAL = 0;   // corpus size, for the figure's source line
+let OV_ROLES = [];  // measured roles, for the example loader
+let OV_LCN = 20;    // low-confidence threshold, read from the API at boot
+let OV_CACHE = null;// the overview payload, reused when switching roles
+let PER = {};       // findings per role, fetched once at boot
 
 async function get(url){
   // no-store: the database is rebuilt between runs, so a cached response can
@@ -373,10 +445,16 @@ function drawRoles(ov, per){
         + " with strong evidence, from " + f.latest_n + " job ads in the latest "
         + "quarter";
     }
-    return '<a class="chip" data-r="' + esc(r.toLowerCase())
-      + '" href="/dashboard?role=' + encodeURIComponent(r) + '">'
-      + '<div class="r">' + esc(r) + '</div><div class="d">' + esc(d) + '</div></a>';
+    /* A button, not a link. Clicking recomputes the picture and the chart
+       in place: the point is that this is an instrument you operate, not a
+       deck you page through. The full evidence is still one click further. */
+    return '<button class="chip" type="button" data-r="' + esc(r.toLowerCase())
+      + '" data-role="' + esc(r) + '">'
+      + '<div class="r">' + esc(r) + '</div><div class="d">' + esc(d) + '</div></button>';
   }).join("");
+
+  document.querySelectorAll(".chip").forEach(b =>
+    b.onclick = () => selectRole(b.dataset.role, true));
 
   $("#roleNote").textContent =
     ov.roles.length + " roles measured so far — these are examples, not the whole "
@@ -586,6 +664,138 @@ function drawFigure(role, f){
     + " job ads in that quarter.";
 }
 
+/* ------------------------------------------------------------ role switch */
+/* Re-renders the picture, the chart and the caption for a different role
+   without leaving the page. Everything is already in memory from boot, so the
+   only network call is the one that fetches an example advertisement. */
+let ACTIVE_ROLE = null;
+
+async function selectRole(role, scroll){
+  if(!role || !PER[role]) return;
+  ACTIVE_ROLE = role;
+  document.querySelectorAll(".chip").forEach(c =>
+    c.classList.toggle("on", c.dataset.role === role));
+
+  const img = $("#image"), fig = document.querySelector(".figure");
+  img.classList.add("swapping"); if(fig) fig.classList.add("swapping");
+
+  const f = PER[role];
+  $("#nowShowing").innerHTML =
+    "Showing <b>" + esc(role) + "</b>"
+    + ' <span class="pill">' + f.latest_n + " job ads in " + esc(f.latest_quarter) + "</span>"
+    + (f.latest_n < OV_LCN
+        ? ' <span class="pill" style="background:var(--warnbg)">only '
+          + f.latest_n + " job ads \u2014 too few to conclude from</span>"
+        : "")
+    + ' <a class="pill" href="/dashboard?role=' + encodeURIComponent(role)
+    + '">see the full evidence &rarr;</a>';
+
+  await drawImage(OV_CACHE, role, f);
+  setTimeout(() => {
+    void document.querySelector(".fig-box").offsetHeight;
+    try{ drawFigure(role, f); }catch(e){ console.error("drawFigure failed:", e); }
+    img.classList.remove("swapping"); if(fig) fig.classList.remove("swapping");
+  }, 0);
+
+  if(scroll) img.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+/* --------------------------------------------------------------- try it */
+/* Runs the real extractor over text the visitor supplies. This answers a
+   different question from the click-through evidence: not "are these numbers
+   real" but "does the instrument work on text you have never seen". It is the
+   one claim that cannot be staged in advance. */
+let TRY_BUSY = false;
+
+function escHTML(t){ return esc(t); }
+
+/* Highlight every matched surface form in the submitted text. Uses the text
+   that actually fired, not the canonical name, so an ad saying "GenAI" for the
+   skill "LLM" lights up the word the ad really used. */
+function markUp(text, found){
+  const terms = found.map(f => f.matched_text).filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  if(!terms.length) return escHTML(text);
+  const re = new RegExp("(" + terms.map(t =>
+    t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+  return escHTML(text).replace(re, "<mark>$1</mark>");
+}
+
+async function runExtract(){
+  if(TRY_BUSY) return;
+  const text = $("#tryText").value.trim();
+  if(!text){ $("#tryStat").textContent = "Paste some text first."; return; }
+  TRY_BUSY = true;
+  $("#tryStat").textContent = "Running the extractor\u2026";
+  try{
+    const r = await fetch("/api/extract", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text: text})
+    });
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+
+    const missing = d.found.filter(f => !f.taught);
+    $("#tryScore").innerHTML = d.n_found === 0
+      ? "No tracked skills found in this text."
+      : "<b>" + d.n_found + "</b> skill" + (d.n_found === 1 ? "" : "s")
+        + " found &mdash; <b>" + d.n_not_taught + "</b> of them not taught by the syllabus.";
+    $("#trySub").textContent =
+      "Matched against a fixed list of " + d.dictionary_size + " skills, by exact "
+      + "rule. No model, no network, no guessing \u2014 the same pass that produced "
+      + "every number on this page. Syllabus compared: " + d.curriculum + ".";
+
+    $("#trySkills").innerHTML = d.found.map(f =>
+      '<span class="sk ' + (f.taught ? "yes" : "no") + '" title="'
+      + esc(f.evidence || "") + '">' + esc(f.skill)
+      + ' <span class="why">' + (f.taught ? "taught" : "not taught") + "</span></span>"
+    ).join("") || '<span class="small">Nothing in the dictionary matched.</span>';
+
+    $("#tryMarked").innerHTML = markUp(text, d.found);
+
+    const u = $("#tryUntracked");
+    if(d.untracked_candidates && d.untracked_candidates.length){
+      u.hidden = false;
+      u.innerHTML = "<b>We do not track these:</b> "
+        + d.untracked_candidates.map(esc).join(" \u00b7 ")
+        + ". The list of skills is fixed, so a term outside it is "
+        + "<i>unmeasured</i>, not absent from demand. Showing what we missed is "
+        + "part of the measurement.";
+    } else { u.hidden = true; }
+
+    $("#tryResult").hidden = false;
+    $("#tryStat").textContent = "";
+  }catch(e){
+    $("#tryStat").textContent = "Could not run the extractor: " + e.message;
+  }finally{
+    TRY_BUSY = false;
+  }
+}
+
+/* Load a genuine advertisement out of the corpus, so a visitor with nothing to
+   paste can still see it work -- and can see which kind of record it is. */
+async function loadExample(){
+  $("#tryStat").textContent = "Fetching a real posting\u2026";
+  try{
+    const roles = (OV_ROLES.length ? OV_ROLES : ["Data Analyst"]);
+    const role = roles[Math.floor(Math.random() * roles.length)];
+    const ps = await get("/api/postings?role=" + encodeURIComponent(role) + "&limit=60");
+    const real = (ps.postings || []).filter(p => p.source !== "synthetic");
+    const pool = real.length ? real : (ps.postings || []);
+    if(!pool.length){ $("#tryStat").textContent = "No postings available."; return; }
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const full = await get("/api/posting/" + encodeURIComponent(pick.id));
+    $("#tryText").value = full.description_text || "";
+    $("#tryStat").textContent = pick.source === "synthetic"
+      ? "Loaded a GENERATED test record (" + pick.title + ")."
+      : "Loaded a real posting: " + pick.title + " \u2014 " + pick.company
+        + " (" + pick.source + ").";
+  }catch(e){
+    $("#tryStat").textContent = "Could not load an example: " + e.message;
+  }
+}
+
 /* ----------------------------------------------------------------- boot */
 async function boot(){
   let ov;
@@ -598,7 +808,10 @@ async function boot(){
   /* Findings for every role, so the counts on this page describe the whole
      system rather than whichever role happened to be the default. */
   OV_TOTAL = ov.n_postings;
-  const per = {};
+  OV_ROLES = ov.roles || [];
+  OV_LCN = (ov.thresholds || {}).low_confidence_n || 20;
+  OV_CACHE = ov;
+  const per = PER;
   let sup = 0, dis = 0, ok = 0;
   await Promise.all(ov.roles.map(async r => {
     try{
@@ -628,19 +841,25 @@ async function boot(){
         ? "a hand-assembled stand-in, not an official published curriculum."
         : "see the method page for how it was sourced.");
 
-  const role = ov.roles.indexOf("Data Analyst") !== -1 ? "Data Analyst" : ov.roles[0];
-  if(per[role]){
-    await drawImage(ov, role, per[role]);
-    /* setTimeout, not requestAnimationFrame: rAF is tied to the compositor and
-       does not fire in a pane that is not actively painting, which silently
-       left every chart undrawn once already. Reading a layout property first
-       forces the box to be measured before Chart.js sizes to it. */
-    setTimeout(() => {
-      void document.querySelector(".fig-box").offsetHeight;
-      try{ drawFigure(role, per[role]); }
-      catch(e){ console.error("drawFigure failed:", e); }
-    }, 0);
-  }
+  /* First paint goes through the same switcher the chips use, so there is one
+     code path for "show this role" and it cannot drift.
+     setTimeout inside it, not requestAnimationFrame: rAF is tied to the
+     compositor and does not fire in a pane that is not actively painting,
+     which silently left every chart undrawn once already. */
+  const first = ov.roles.indexOf("Data Analyst") !== -1 ? "Data Analyst" : ov.roles[0];
+  if(per[first]) await selectRole(first, false);
+
+  $("#tryRun").onclick = runExtract;
+  $("#tryExample").onclick = loadExample;
+  $("#tryClear").onclick = () => {
+    $("#tryText").value = "";
+    $("#tryResult").hidden = true;
+    $("#tryStat").textContent = "";
+  };
+  // Ctrl/Cmd+Enter runs it, which is what anyone who types into a box expects.
+  $("#tryText").addEventListener("keydown", e => {
+    if((e.ctrlKey || e.metaKey) && e.key === "Enter") runExtract();
+  });
 
   $("#foot").textContent =
     "Skill Drift Analyzer · database built " + ov.built_at
