@@ -40,6 +40,17 @@
   --miss:#A5553C; --missbg:#F6E7E2;
   --note:#F2E9DA; --noterule:#D8C4A6;
 
+  /* Chart series and control borders, set by MEASUREMENT rather than eye.
+     WCAG 2.1 1.4.11 asks 3:1 for any graphical object that carries meaning and
+     for the boundary of a form control. A contrast audit of the palette caught
+     two failures: the "taught" bar sat at 2.09:1 against the card, and every
+     input border at 1.84:1. Both are now the darkest step of the same warm hue
+     that clears 3:1 on BOTH the card and the page ground -- the palette is
+     unchanged, the values are just legal. */
+  --taught:#A88459;      /* 3.39:1 on card, 3.11:1 on page */
+  --falling:#8A7663;     /* 4.26:1 on card */
+  --control:#A89070;     /* 3.00:1 on card: input and textarea borders */
+
   --serif:"Sitka Banner","Sitka Display","Sitka Text",Constantia,
           "Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
   --text:"Sitka Text",Constantia,Georgia,"Palatino Linotype",Palatino,
@@ -47,6 +58,40 @@
   --sans:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,
          "Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,"Cascadia Mono",Consolas,SFMono-Regular,Menlo,monospace;
+
+  /* ---------------------------------------------------- scales ----------
+     An audit of this site found TWENTY-FIVE distinct font sizes -- 16px and
+     16.5px and 17px and 17.5px all in use, every one chosen by hand. Picking
+     values ad hoc is the single biggest reason an interface reads as amateur
+     (Wathan & Schoger, "Refactoring UI"), because nothing lines up and no size
+     difference means anything.
+
+     Eight steps, roughly a 1.2 ratio. If a size is not on this list it does
+     not belong on the page. */
+  --t-xs:13px;    /* standing labels, source lines */
+  --t-sm:15px;    /* captions, table cells, chrome */
+  --t-md:17px;    /* secondary prose, buttons */
+  --t-base:19px;  /* body */
+  --t-lg:23px;    /* lede, card headings, figure headline */
+  --t-xl:28px;    /* section headings */
+  --t-2xl:34px;   /* page titles below h1 */
+  --t-3xl:44px;   /* display numbers */
+
+  /* Spacing, on a 4px grid. Same argument: consistent rhythm is most of what
+     separates a designed page from an assembled one. */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+  --s6:32px; --s7:48px; --s8:64px;
+
+  /* ---------------------------------------------------- depth -----------
+     The whole site was flat outlined boxes: borders for structure and no
+     light at all, which is a large part of why it read as bland. Depth comes
+     from emulated light, so these are warm-tinted, low-opacity and small --
+     a document lifted off a desk, not a SaaS card floating in space. Borders
+     still do the structural work; the shadow only separates a surface from
+     the ground behind it. */
+  --lift-1:0 1px 2px rgba(90,62,36,.055), 0 1px 1px rgba(90,62,36,.04);
+  --lift-2:0 2px 4px rgba(90,62,36,.06), 0 4px 12px rgba(90,62,36,.05);
+  --lift-3:0 4px 8px rgba(90,62,36,.07), 0 12px 28px rgba(90,62,36,.07);
 }
 
 *{box-sizing:border-box}
@@ -70,31 +115,36 @@ body{
    they look loose; small ones do not. */
 h1,h2,h3,.seclabel,.fig-h{font-family:var(--serif);font-weight:600;margin:0;
                           letter-spacing:-.012em}
-h1{font-size:clamp(34px,4.2vw,52px);line-height:1.04;letter-spacing:-.022em}
-h2{font-size:27px;line-height:1.2}
-h3{font-size:21px;line-height:1.25}
+h1{font-size:clamp(var(--t-2xl),4.2vw,52px);line-height:1.04;letter-spacing:-.022em}
+h2{font-size:var(--t-xl);line-height:1.2}
+h3{font-size:var(--t-lg);line-height:1.25}
 
 /* Anything scanned rather than read stays in the sans, with lining figures
    that align in a column. */
 .sans,table,button,select,input,.kicker,.tag,.dec,.flag,.n .k,.n .s,
 .kpi,.crumbs,.toc,.fig-key,.fig-src,.lbl,th,td,.num{font-family:var(--sans)}
 
-.kicker{font-family:var(--sans);font-size:13px;letter-spacing:.15em;
+.kicker{font-family:var(--sans);font-size:var(--t-xs);letter-spacing:.15em;
         font-weight:700;color:var(--action);text-transform:uppercase}
 
 /* Measure: prose past ~42em is measurably harder to read, whatever the size. */
 p{margin:15px 0;max-width:42em}
-.lede{font-size:23px;line-height:1.5;max-width:38em;color:var(--ink)}
-.small{font-size:16px;line-height:1.5;color:var(--ink2)}
+.lede{font-size:var(--t-lg);line-height:1.5;max-width:38em;color:var(--ink)}
+.small{font-size:var(--t-md);line-height:1.5;color:var(--ink2)}
 a{color:var(--action);text-underline-offset:2px}
 
 /* ------------------------------------------------------------------ links */
+/* Form controls carry a boundary that WCAG treats as informative, so they use
+   --control rather than the lighter decorative rule. */
+input,textarea,select{border-color:var(--control)}
+
 .btn{display:inline-block;font-family:var(--sans);font-weight:600;
      border:1px solid var(--action);border-radius:8px;padding:11px 20px;
-     font-size:17px;text-decoration:none;cursor:pointer;
-     background:var(--panel);color:var(--action)}
+     font-size:var(--t-md);text-decoration:none;cursor:pointer;
+     background:var(--panel);color:var(--action);box-shadow:var(--lift-1);
+     transition:background .12s ease, box-shadow .12s ease, transform .12s ease}
 .btn.primary{background:var(--action);color:#FFF8F0;border-color:var(--action)}
-.btn:hover{background:var(--actionbg)}
+.btn:hover{background:var(--actionbg);box-shadow:var(--lift-2);transform:translateY(-1px)}
 .btn.primary:hover{background:var(--action2)}
 
 /* ------------------------------------------------------- the data note ---
@@ -112,18 +162,20 @@ a{color:var(--action);text-underline-offset:2px}
       padding:13px 28px;color:var(--ink)}
 #prov .inner{max-width:1120px;margin:0 auto;display:flex;gap:18px;
              align-items:baseline;flex-wrap:wrap}
-#prov .tagword{font-family:var(--sans);font-size:11.5px;letter-spacing:.14em;
+#prov .tagword{font-family:var(--sans);font-size:12px;letter-spacing:.14em;
       text-transform:uppercase;font-weight:700;color:#FFF8F0;
       background:var(--action);border-radius:3px;padding:4px 9px;
       white-space:nowrap;flex:none}
-#prov .body{font-size:16.5px;line-height:1.45;flex:1 1 380px;min-width:0}
+#prov .body{font-size:var(--t-md);line-height:1.45;flex:1 1 380px;min-width:0}
 #prov b{font-weight:600}
 
 /* ------------------------------------------------------------ containers */
+/* Cards get light; borders keep doing the structural work. */
+.panel,.figure,.try,.n,.doc,.cardchart,.kpi,.chip{box-shadow:var(--lift-1)}
 .panel{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
-       padding:20px 22px}
-.seclabel{font-size:26px;padding-bottom:9px;border-bottom:2px solid var(--rule2);
-          margin-bottom:10px}
+       padding:var(--s5)}
+.seclabel{font-size:var(--t-xl);padding-bottom:var(--s2);
+          border-bottom:2px solid var(--rule2);margin-bottom:var(--s3)}
 .seclabel::before{content:"";display:inline-block;width:5px;height:20px;
           background:var(--action);margin-right:12px;vertical-align:-3px;
           border-radius:2px}
@@ -132,6 +184,6 @@ a{color:var(--action);text-underline-offset:2px}
 .big,.heroSkill,.n .v,.kpi .v,.fig-h{font-variant-numeric:lining-nums tabular-nums;
        font-feature-settings:"lnum" 1,"tnum" 1}
 
-footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--rule);
-       font-family:var(--sans);font-size:15px;color:var(--ink2)}
+footer{margin-top:var(--s8);padding-top:var(--s5);border-top:1px solid var(--rule);
+       font-family:var(--sans);font-size:var(--t-sm);color:var(--ink2)}
 .err{color:#8A2B18}

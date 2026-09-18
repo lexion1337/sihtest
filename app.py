@@ -41,7 +41,13 @@ async def no_store_api(request, call_next):
     current record, serving a stale one is a correctness bug, not a nuisance.
     """
     response = await call_next(request)
-    if request.url.path.startswith("/api/"):
+    # /static too: the stylesheet and the pages are edited between demos, and a
+    # browser holding yesterday's CSS against today's markup renders a page that
+    # is subtly, silently wrong -- during testing it served an old palette whose
+    # colour tokens no longer existed, which drew the chart bars with no colour
+    # at all. These files are local and tiny; correctness is worth more here
+    # than a cache hit.
+    if request.url.path.startswith(("/api/", "/static/")):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         response.headers["Pragma"] = "no-cache"
     return response

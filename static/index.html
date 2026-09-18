@@ -18,7 +18,7 @@
   header{padding:38px 0 0}
   h1{margin:12px 0 14px}
   .topnav{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap}
-  .btn{font-size:18px}
+  .btn{font-size:var(--t-base)}
 
   /* --------------------------- three-second image -------------------------- */
   /* Two documents, side by side, and the skill that is in one and not the
@@ -27,33 +27,33 @@
          margin-top:22px}
   .doc{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
        padding:20px 22px;min-height:230px}
-  .doc .lbl{font-family:var(--sans);font-size:12px;letter-spacing:.13em;
+  .doc .lbl{font-family:var(--sans);font-size:var(--t-xs);letter-spacing:.13em;
             text-transform:uppercase;font-weight:700;color:var(--ink2)}
-  .doc h3{font-size:22px;margin:8px 0 2px;line-height:1.2}
-  .doc .meta{font-size:15px;color:var(--ink2);line-height:1.45}
-  .quote{margin-top:14px;font-size:17.5px;line-height:1.55;font-style:italic;
+  .doc h3{font-size:var(--t-lg);margin:8px 0 2px;line-height:1.2}
+  .doc .meta{font-size:var(--t-sm);color:var(--ink2);line-height:1.45}
+  .quote{margin-top:14px;font-size:var(--t-md);line-height:1.55;font-style:italic;
          border-left:3px solid var(--rule2);padding-left:15px;color:var(--ink)}
   .hit{background:#F3DFC9;border-bottom:2px solid var(--action);font-weight:600;
        padding:0 2px}
   .lines{margin-top:14px}
-  .lines div{font-size:16px;padding:5px 0;border-bottom:1px dashed var(--rule);
+  .lines div{font-size:var(--t-md);padding:5px 0;border-bottom:1px dashed var(--rule);
              color:var(--ink2)}
   .lines div.no{color:var(--miss);font-weight:600}
   .bridge{display:flex;flex-direction:column;align-items:center;
           justify-content:center;text-align:center;padding:0 6px}
-  .bridge .gapword{font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  .bridge .gapword{font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;
                    font-weight:700;color:var(--miss);margin-top:6px}
-  .bridge .arrow{font-size:30px;color:var(--rule2);line-height:1}
-  .imgcap{margin-top:14px;font-size:17px;color:var(--ink2);max-width:60em}
+  .bridge .arrow{font-size:var(--t-2xl);color:var(--rule2);line-height:1}
+  .imgcap{margin-top:14px;font-size:var(--t-md);color:var(--ink2);max-width:60em}
 
   /* ------------------------------- numbers -------------------------------- */
   .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
   .n{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
      padding:18px 20px;border-top:4px solid var(--action)}
-  .n .v{font-size:44px;font-weight:600;line-height:1.02;color:var(--action);
+  .n .v{font-size:var(--t-3xl);font-weight:600;line-height:1.02;color:var(--action);
         font-family:var(--serif);letter-spacing:-.02em}
-  .n .k{font-size:17px;font-weight:600;margin-top:6px}
-  .n .s{font-size:15px;color:var(--ink2);margin-top:4px;line-height:1.4}
+  .n .k{font-size:var(--t-md);font-weight:600;margin-top:6px}
+  .n .s{font-size:var(--t-sm);color:var(--ink2);margin-top:4px;line-height:1.4}
 
   /* --------------------------------- chart -------------------------------- */
   /* Built to the UK Government Analysis Function conventions for statistical
@@ -64,19 +64,28 @@
      words as well. An accessible data table sits underneath. */
   .figure{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
           padding:22px 24px;margin-top:18px}
-  .fig-h{font-size:23px;font-weight:600;line-height:1.25;max-width:34em}
-  .fig-sub{font-size:16px;color:var(--ink2);margin-top:5px;line-height:1.4}
-  .fig-box{position:relative;height:340px;margin-top:18px}
-  .fig-src{font-size:14px;color:var(--ink2);margin-top:14px;padding-top:10px;
+  .fig-h{font-size:var(--t-lg);font-weight:600;line-height:1.25;max-width:34em}
+  .fig-sub{font-size:var(--t-md);color:var(--ink2);margin-top:5px;line-height:1.4}
+  .fig-box{position:relative;height:390px;margin-top:14px}
+  .fig-src{font-size:var(--t-sm);color:var(--ink2);margin-top:14px;padding-top:10px;
            border-top:1px solid var(--rule)}
-  .fig-key{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:15px;
+  .fig-key{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:var(--t-sm);
            color:var(--ink2)}
+  /* Tabs: the chart is a control, not a picture. Switching view is the
+     cheapest honest interaction on the page -- same data, different question. */
+  .figtabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 2px}
+  .figtabs button{font-family:var(--sans);font-size:var(--t-sm);font-weight:600;
+      border:1px solid var(--control);background:var(--page);color:var(--ink2);
+      border-radius:20px;padding:7px 15px;cursor:pointer}
+  .figtabs button:hover{background:var(--actionbg);color:var(--action)}
+  .figtabs button.on{background:var(--action);border-color:var(--action);
+      color:#FFF8F0}
   .fig-key span{display:flex;align-items:center;gap:7px}
   .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
-  details.data{margin-top:12px;font-size:16px}
+  details.data{margin-top:12px;font-size:var(--t-md)}
   details.data summary{cursor:pointer;color:var(--action);font-weight:600}
-  details.data table{border-collapse:collapse;width:100%;margin-top:10px;font-size:16px}
-  details.data th{text-align:left;font-size:13px;letter-spacing:.04em;
+  details.data table{border-collapse:collapse;width:100%;margin-top:10px;font-size:var(--t-md)}
+  details.data th{text-align:left;font-size:var(--t-xs);letter-spacing:.04em;
        text-transform:uppercase;color:var(--ink2);padding:8px;
        border-bottom:2px solid var(--rule2)}
   details.data td{padding:7px 8px;border-bottom:1px solid var(--rule)}
@@ -90,35 +99,35 @@
   .try{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
        padding:22px 24px;margin-top:18px}
   .try textarea{width:100%;min-height:150px;resize:vertical;font:16px/1.55 var(--text);
-       color:var(--ink);background:var(--page);border:1px solid var(--rule2);
+       color:var(--ink);background:var(--page);border:1px solid var(--control);
        border-radius:8px;padding:14px 16px}
   .try textarea:focus{outline:2px solid var(--action);outline-offset:1px}
   .tryrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
-  .tryrow .btn{padding:9px 18px;font-size:16px}
-  .trystat{font-family:var(--sans);font-size:15px;color:var(--ink2)}
+  .tryrow .btn{padding:9px 18px;font-size:var(--t-md)}
+  .trystat{font-family:var(--sans);font-size:var(--t-sm);color:var(--ink2)}
   .result{margin-top:20px;border-top:1px solid var(--rule);padding-top:18px}
   .result[hidden]{display:none}
-  .scoreline{font-size:22px;font-family:var(--serif);font-weight:600;
+  .scoreline{font-size:var(--t-lg);font-family:var(--serif);font-weight:600;
              line-height:1.3;margin-bottom:4px}
   .chips2{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
-  .sk{font-family:var(--sans);font-size:15px;border-radius:20px;padding:5px 13px;
+  .sk{font-family:var(--sans);font-size:var(--t-sm);border-radius:20px;padding:5px 13px;
       border:1px solid var(--rule2);background:var(--page);cursor:default}
   .sk.no{background:var(--missbg);border-color:#E2C3B8;color:#7A3A26;font-weight:600}
   .sk.yes{background:var(--goodbg);border-color:#BBD0BB;color:#2F5638}
-  .sk .why{font-size:13px;opacity:.75}
+  .sk .why{font-size:var(--t-xs);opacity:.75}
   .marked{background:var(--page);border:1px solid var(--rule);border-radius:8px;
-          padding:14px 16px;font-size:16px;line-height:1.7;max-height:260px;
+          padding:14px 16px;font-size:var(--t-md);line-height:1.7;max-height:260px;
           overflow:auto;white-space:pre-wrap}
   .marked mark{background:#F3DFC9;border-bottom:2px solid var(--action);
                padding:0 2px;border-radius:2px;font-weight:600;color:var(--ink)}
-  .untracked{font-family:var(--sans);font-size:15px;color:var(--ink2);margin-top:14px;
+  .untracked{font-family:var(--sans);font-size:var(--t-sm);color:var(--ink2);margin-top:14px;
              background:var(--warnbg);border-radius:8px;padding:11px 14px}
-  .spin{font-family:var(--sans);font-size:15px;color:var(--ink2)}
+  .spin{font-family:var(--sans);font-size:var(--t-sm);color:var(--ink2)}
 
   /* ----------------------------- role explorer ---------------------------- */
   .search{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
-  .search input{font:inherit;font-size:18px;padding:11px 14px;
-                border:1px solid var(--rule2);border-radius:8px;
+  .search input{font:inherit;font-size:var(--t-base);padding:11px 14px;
+                border:1px solid var(--control);border-radius:8px;
                 background:var(--panel);color:var(--ink);min-width:320px}
   .search input:focus{outline:2px solid var(--action);outline-offset:1px}
   .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
@@ -130,35 +139,35 @@
   .chip:hover{background:var(--actionbg)}
   .chip.on{background:var(--actionbg);border-left-width:9px;
            box-shadow:inset 0 0 0 1px var(--rule2)}
-  .nowshowing{font-family:var(--sans);font-size:15px;color:var(--ink2);
+  .nowshowing{font-family:var(--sans);font-size:var(--t-sm);color:var(--ink2);
               margin-top:10px;display:flex;gap:10px;align-items:center;
               flex-wrap:wrap}
   .nowshowing b{color:var(--action)}
-  .pill{font-family:var(--sans);font-size:14px;border:1px solid var(--rule2);
+  .pill{font-family:var(--sans);font-size:var(--t-sm);border:1px solid var(--rule2);
         border-radius:20px;padding:3px 11px;background:var(--panel)}
   .swapping{opacity:.35;transition:opacity .12s ease}
-  .chip .r{font-size:19px;font-weight:600}
-  .chip .d{font-size:15px;color:var(--ink2);margin-top:3px}
+  .chip .r{font-size:var(--t-base);font-weight:600}
+  .chip .d{font-size:var(--t-sm);color:var(--ink2);margin-top:3px}
   .chip[hidden]{display:none}
-  .nohit{font-size:17px;color:var(--ink2);margin-top:12px}
+  .nohit{font-size:var(--t-md);color:var(--ink2);margin-top:12px}
 
   /* ------------------------------ how it works ---------------------------- */
   .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
   .step{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
         padding:16px 18px}
-  .step .i{font-size:13px;letter-spacing:.1em;font-weight:700;color:var(--action);
+  .step .i{font-size:var(--t-xs);letter-spacing:.1em;font-weight:700;color:var(--action);
            text-transform:uppercase}
-  .step h3{font-size:19px;margin:6px 0 4px}
-  .step p{font-size:16px;color:var(--ink2);margin:0;line-height:1.45}
+  .step h3{font-size:var(--t-base);margin:6px 0 4px}
+  .step p{font-size:var(--t-md);color:var(--ink2);margin:0;line-height:1.45}
 
   /* -------------------------------- boxes --------------------------------- */
   .box{background:var(--panel);border:1px solid var(--rule);border-radius:10px;
        padding:22px 24px}
   .box.limits{border-left:5px solid var(--warnink);background:#FDF6E7}
   .box.rigour{border-left:5px solid var(--good);background:var(--goodbg)}
-  .box h2{font-size:24px}
+  .box h2{font-size:var(--t-lg)}
   .box ul{margin:12px 0 0;padding-left:22px}
-  .box li{margin:8px 0;font-size:17px;line-height:1.5}
+  .box li{margin:8px 0;font-size:var(--t-md);line-height:1.5}
   .seclabel{margin-bottom:8px}
   @media (max-width:860px){
     .image{grid-template-columns:1fr}
@@ -245,10 +254,12 @@
   <div class="figure">
     <div class="fig-h" id="figH">Loading...</div>
     <div class="fig-sub" id="figSub"></div>
-    <div class="fig-key">
-      <span><i class="sw" style="background:#A5553C"></i> Not taught by the syllabus</span>
-      <span><i class="sw" style="background:#C9AE8C"></i> Taught by the syllabus</span>
+    <div class="figtabs" id="figTabs">
+      <button type="button" data-mode="level" class="on">What they ask for</button>
+      <button type="button" data-mode="change">What changed</button>
+      <button type="button" data-mode="gap">The gap only</button>
     </div>
+    <div class="fig-key" id="figKey"></div>
     <div class="fig-box"><canvas id="figChart"></canvas></div>
     <details class="data">
       <summary>Show these numbers as a table</summary>
@@ -568,100 +579,238 @@ async function drawImage(ov, role, f){
     + '">the dashboard lists the rest</a>.';
 }
 
+/* Chart colours come from the stylesheet, not from hexes typed into the JS.
+   The contrast audit lives in base.css; a second copy here would drift out of
+   compliance the first time either is edited. */
+function CSSVAR(name, fallback){
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue(name).trim();
+  /* A missing custom property returns an EMPTY STRING, and Chart.js draws an
+     empty colour as nothing at all -- an invisible bar that looks like missing
+     data rather than a missing stylesheet. If base.css has not arrived, or a
+     token is renamed, fall back to the audited value instead of vanishing. */
+  return v || fallback;
+}
+
 /* ---------------------------------------------------------------- figure */
-/* Conventions taken from the UK Government Analysis Function guidance for
-   charts in statistical publications, since the reader here is a government
-   department:
-     - a headline that states the message, not "Figure 1"
-     - a statistical subtitle: what the data is, whose it is, which period
-     - a source line, always
-     - horizontal text only, so the skill names are transposed onto the y axis
-     - light grey gridlines, no shaded background, no 3D, no borders
-     - colour never carries meaning alone: each bar is also labelled in words
-     - an accessible data table alongside the picture
-   No p-values here. This page reports counts. */
+/* Conventions from the UK Government Analysis Function guidance for charts in
+   statistical publications, since the reader is a government department:
+   a headline that states the message, a statistical subtitle naming the data
+   and period, a source line, horizontal text, light gridlines, no broken
+   numerical axis, an accessible data table, and colour never carrying meaning
+   on its own.
+
+   Three views of the same numbers, because one picture cannot answer three
+   questions and a chart the reader can interrogate beats a chart they scroll
+   past:
+
+     level   what employers asked for, ranked
+     change  how far each skill MOVED between the baseline and now -- this is
+             the drift the project is named after, and it was missing
+     gap     only the skills in demand that the syllabus does not teach
+
+   No p-values in any of them. This page reports counts.                     */
 let FIG = null;
+let FIG_MODE = "level";
+let FIG_ROLE = null;
 
-function drawFigure(role, f){
-  if(typeof Chart === "undefined") return;          // vendored file missing
-  const rows = (f.supported || []).concat(f.discarded || [])
-    .filter(r => r.latest_count > 0)
-    .sort((a, b) => b.latest_share - a.latest_share)
-    .slice(0, 8);
-  if(!rows.length) return;
+/* Counts printed at the end of every bar. The sample size belongs where the
+   eye already is, not only in the subtitle and the collapsed table -- and it
+   removes the need to read a value off an axis. */
+const endLabels = {
+  id: "endLabels",
+  afterDatasetsDraw(chart, _args, opts){
+    const labels = (opts && opts.labels) || [];
+    if(!labels.length) return;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = '600 13px "Segoe UI",system-ui,sans-serif';
+    ctx.fillStyle = "#5F4B39";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    chart.getDatasetMeta(0).data.forEach((el, i) => {
+      if(!labels[i]) return;
+      const right = Math.max(el.x, el.base == null ? el.x : el.base);
+      ctx.fillText(labels[i], right + 9, el.y);
+    });
+    ctx.restore();
+  }
+};
 
-  const nUntaught = rows.filter(r => !r.taught).length;
-  $("#figH").textContent = nUntaught
-    ? nUntaught + " of the " + rows.length + " skills most asked for in "
-      + role + " job ads are not taught by the syllabus"
-    : "Every skill most asked for in " + role + " job ads is taught by the syllabus";
-  $("#figSub").textContent =
-    "Share of " + f.latest_n + " " + role + " job ads in " + f.latest_quarter
-    + " that mentioned each skill, with the number of ads behind each bar. "
-    + "Eight most-mentioned skills shown.";
+const GRID = {color: "#EBE1D3", drawBorder: false};
+const TICKS = {color: "#5F4B39", font: {size: 14}};
 
-  /* The label carries the taught/not-taught status in words, so the chart is
-     still readable in greyscale or by a colour-blind reader. */
-  const labels = rows.map(r => r.taught ? r.skill : r.skill + "  (not taught)");
+function figRows(f, mode){
+  const all = (f.supported || []).concat(f.discarded || []);
+  if(mode === "gap"){
+    return all.filter(r => !r.taught && r.latest_count > 0)
+              .sort((a, b) => b.latest_share - a.latest_share).slice(0, 8);
+  }
+  if(mode === "change"){
+    return all.filter(r => r.latest_n && Math.abs(r.change_pp) > 0)
+              .sort((a, b) => Math.abs(b.change_pp) - Math.abs(a.change_pp)).slice(0, 8);
+  }
+  return all.filter(r => r.latest_count > 0)
+            .sort((a, b) => b.latest_share - a.latest_share).slice(0, 8);
+}
+
+function drawFigure(role, f, mode){
+  if(typeof Chart === "undefined") return;
+  FIG_ROLE = role;
+  FIG_MODE = mode || FIG_MODE;
+  const rows = figRows(f, FIG_MODE);
+  const box = document.querySelector(".figure");
+  if(!rows.length){
+    if(FIG) { FIG.destroy(); FIG = null; }
+    $("#figH").textContent = FIG_MODE === "gap"
+      ? "No skill for " + role + " is both in demand and untaught."
+      : "Nothing to chart for " + role + " yet.";
+    $("#figSub").textContent = "";
+    $("#figKey").innerHTML = "";
+    $("#figTable").querySelector("tbody").innerHTML = "";
+    return;
+  }
+
+  /* Colour never carries meaning alone: the axis label spells out the status
+     in words as well, so the chart survives greyscale and colour blindness. */
+  let labels, data, colours, endText, headline, sub, key;
+
+  if(FIG_MODE === "change"){
+    labels = rows.map(r => r.taught ? [r.skill] : [r.skill, "not taught"]);
+    data = rows.map(r => [r.baseline_share, r.latest_share]);   // floating bars
+    colours = rows.map(r => r.change_pp >= 0 ? CSSVAR("--action", "#7C4A21") : CSSVAR("--falling", "#8A7663"));
+    endText = rows.map(r => (r.change_pp >= 0 ? "+" : "") + r.change_pp.toFixed(0) + " pp");
+    const up = rows.filter(r => r.change_pp > 0).length;
+    headline = up + " of the " + rows.length + " biggest movers in " + role
+      + " job ads are rising";
+    sub = "Each bar spans from the baseline share to " + f.latest_quarter
+      + ". The baseline pools the first two observed quarters; the latest "
+      + "quarter holds " + f.latest_n + " job ads. Ranked by size of movement.";
+    key = '<span><i class="sw" style="background:var(--action)"></i> Rising</span>'
+        + '<span><i class="sw" style="background:var(--falling)"></i> Falling</span>'
+        + '<span>Bar spans baseline &rarr; latest</span>';
+  } else if(FIG_MODE === "gap"){
+    labels = rows.map(r => [r.skill]);
+    data = rows.map(r => r.latest_share);
+    colours = rows.map(() => CSSVAR("--miss", "#A5553C"));
+    endText = rows.map(r => r.latest_count + " of " + r.latest_n);
+    headline = rows.length + " skill" + (rows.length === 1 ? "" : "s")
+      + " employers asked for that the syllabus does not teach";
+    sub = "Share of " + f.latest_n + " " + role + " job ads in " + f.latest_quarter
+      + " mentioning each skill. Every skill shown is absent from all "
+      + OV_CACHE.curriculum.n_subjects + " subjects of the syllabus.";
+    key = '<span><i class="sw" style="background:var(--miss)"></i> In demand, not taught</span>';
+  } else {
+    labels = rows.map(r => r.taught ? [r.skill] : [r.skill, "not taught"]);
+    data = rows.map(r => r.latest_share);
+    colours = rows.map(r => r.taught ? CSSVAR("--taught", "#A88459") : CSSVAR("--miss", "#A5553C"));
+    endText = rows.map(r => r.latest_count + " of " + r.latest_n);
+    const miss = rows.filter(r => !r.taught).length;
+    headline = miss
+      ? miss + " of the " + rows.length + " skills most asked for in " + role
+        + " job ads are not taught by the syllabus"
+      : "Every skill most asked for in " + role + " job ads is taught";
+    sub = "Share of " + f.latest_n + " " + role + " job ads in " + f.latest_quarter
+      + " that mentioned each skill, with the number of ads on every bar. "
+      + "Eight most-mentioned shown.";
+    key = '<span><i class="sw" style="background:var(--miss)"></i> Not taught by the syllabus</span>'
+        + '<span><i class="sw" style="background:var(--taught)"></i> Taught by the syllabus</span>';
+  }
+
+  $("#figH").textContent = headline;
+  $("#figSub").textContent = sub;
+  $("#figKey").innerHTML = key;
 
   if(FIG) FIG.destroy();
   FIG = new Chart($("#figChart"), {
     type: "bar",
-    data: {
-      labels: labels,
-      datasets: [{
-        data: rows.map(r => r.latest_share),
-        backgroundColor: rows.map(r => r.taught ? "#C9AE8C" : "#A5553C"),
-        borderRadius: 2,
-        barPercentage: 0.78,        // gap narrower than the bar, per the guidance
-        categoryPercentage: 0.82
-      }]
-    },
+    data: {labels: labels, datasets: [{
+      data: data,
+      backgroundColor: colours,
+      borderRadius: 2,
+      barPercentage: 0.82,      // gap narrower than the bar, per the guidance
+      categoryPercentage: 0.86
+    }]},
     options: {
       indexAxis: "y",
       responsive: true, maintainAspectRatio: false,
-      animation: false,
-      layout: {padding: {right: 12}},
+      animation: {duration: 260},
+      /* Room on the right for the count printed past the end of each bar. */
+      /* Only as much right margin as the longest end label actually needs.
+         A fixed 118px reserve plus a 130px label column left a 130px plot on a
+         narrow canvas, which is why the bars looked like stubs. */
+      layout: {padding: {right: FIG_MODE === "change" ? 62 : 72}},
       plugins: {
-        legend: {display: false},   // the key is in HTML, where a reader can select it
+        legend: {display: false},
+        endLabels: {labels: endText},
         tooltip: {
           displayColors: false,
           callbacks: {
             title: it => rows[it[0].dataIndex].skill,
             label: it => {
               const r = rows[it.dataIndex];
-              return [r.latest_count + " of " + r.latest_n + " job ads ("
-                      + r.latest_share.toFixed(1) + "%)",
-                      r.taught ? "Taught by the syllabus" : "Not taught by the syllabus"];
+              const lines = [r.latest_count + " of " + r.latest_n + " job ads ("
+                             + r.latest_share.toFixed(1) + "%)"];
+              if(FIG_MODE === "change"){
+                lines.push("was " + r.baseline_share.toFixed(1) + "% ("
+                           + r.baseline_count + " of " + r.baseline_n + ")");
+              }
+              lines.push(r.taught ? "Taught by the syllabus"
+                                  : "Not taught by the syllabus");
+              if(r.low_confidence) lines.push("Thin sample - cannot conclude alone");
+              return lines;
             }
           }
         }
       },
       scales: {
         x: {beginAtZero: true, max: 100,
-            /* Never break a numerical axis on a bar chart. */
-            ticks: {callback: v => v + "%", color: "#5F4B39", font: {size: 14}},
-            grid: {color: "#E8DFD2", drawBorder: false},
-            title: {display: true, text: "share of job ads mentioning the skill",
-                    color: "#5F4B39", font: {size: 14}}},
-        y: {ticks: {color: "#2B2118", font: {size: 15}, autoSkip: false},
-            grid: {display: false}}
+            /* Four gridlines, not eleven. The counts are on the bars, so the
+               axis only needs to give a rough sense of scale. */
+            ticks: {stepSize: 25, callback: v => v + "%", ...TICKS},
+            grid: GRID},
+        y: {ticks: {color: "#241B12", font: {size: 15}, autoSkip: false,
+                    crossAlign: "far"},
+            grid: {display: false},
+            /* Cap the label column so a long skill name cannot starve the
+               plot. Chart.js will wrap or clip the tick, never the bars. */
+            afterFit(scale){ scale.width = Math.min(scale.width, 170); }}
       }
-    }
+    },
+    plugins: [endLabels]
   });
 
-  $("#figTable").querySelector("tbody").innerHTML = rows.map(r =>
-    "<tr><td>" + esc(r.skill) + "</td>"
-    + '<td class="num">' + r.latest_count + " of " + r.latest_n + "</td>"
-    + '<td class="num">' + r.latest_share.toFixed(1) + "%</td>"
-    + "<td>" + (r.taught ? "Yes" : "<b>No</b>") + "</td></tr>").join("");
+  /* The accessible table always matches whatever the chart is showing. */
+  const head = FIG_MODE === "change"
+    ? "<tr><th>Skill</th><th class=\"num\">Was</th><th class=\"num\">Now</th>"
+      + "<th class=\"num\">Change</th><th>In the syllabus?</th></tr>"
+    : "<tr><th>Skill</th><th class=\"num\">Job ads asking for it</th>"
+      + "<th class=\"num\">Share</th><th>In the syllabus?</th></tr>";
+  $("#figTable").querySelector("thead").innerHTML = head;
+  $("#figTable").querySelector("tbody").innerHTML = rows.map(r => {
+    const yn = r.taught ? "Yes" : "<b>No</b>";
+    if(FIG_MODE === "change"){
+      return "<tr><td>" + esc(r.skill) + "</td>"
+        + '<td class="num">' + r.baseline_share.toFixed(1) + "% <span class=\"small\">("
+        + r.baseline_count + " of " + r.baseline_n + ")</span></td>"
+        + '<td class="num">' + r.latest_share.toFixed(1) + "% <span class=\"small\">("
+        + r.latest_count + " of " + r.latest_n + ")</span></td>"
+        + '<td class="num">' + (r.change_pp >= 0 ? "+" : "") + r.change_pp.toFixed(1)
+        + " pp</td><td>" + yn + "</td></tr>";
+    }
+    return "<tr><td>" + esc(r.skill) + "</td>"
+      + '<td class="num">' + r.latest_count + " of " + r.latest_n + "</td>"
+      + '<td class="num">' + r.latest_share.toFixed(1) + "%</td>"
+      + "<td>" + yn + "</td></tr>";
+  }).join("");
 
   $("#figSrc").textContent =
     "Source: Skill Drift Analyzer, " + f.latest_quarter + ". Computed from "
-    + f.latest_n + " job ads classified as " + role + ", out of "
-    + OV_TOTAL + " records in the database. A skill outside our fixed list is not "
-    + "counted. Percentages share one denominator: the " + f.latest_n
-    + " job ads in that quarter.";
+    + f.latest_n + " job ads classified as " + role + ", out of " + OV_TOTAL
+    + " records in the database. A skill outside our fixed list of "
+    + OV_CACHE.skill_dict_size + " is not counted. Percentages share one "
+    + "denominator: the " + f.latest_n + " job ads in that quarter.";
+  if(box) box.dataset.mode = FIG_MODE;
 }
 
 /* ------------------------------------------------------------ role switch */
@@ -693,7 +842,7 @@ async function selectRole(role, scroll){
   await drawImage(OV_CACHE, role, f);
   setTimeout(() => {
     void document.querySelector(".fig-box").offsetHeight;
-    try{ drawFigure(role, f); }catch(e){ console.error("drawFigure failed:", e); }
+    try{ drawFigure(role, f, FIG_MODE); }catch(e){ console.error("drawFigure failed:", e); }
     img.classList.remove("swapping"); if(fig) fig.classList.remove("swapping");
   }, 0);
 
@@ -848,6 +997,12 @@ async function boot(){
      which silently left every chart undrawn once already. */
   const first = ov.roles.indexOf("Data Analyst") !== -1 ? "Data Analyst" : ov.roles[0];
   if(per[first]) await selectRole(first, false);
+
+  document.querySelectorAll("#figTabs button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#figTabs button").forEach(x =>
+      x.classList.toggle("on", x === b));
+    if(ACTIVE_ROLE && PER[ACTIVE_ROLE]) drawFigure(ACTIVE_ROLE, PER[ACTIVE_ROLE], b.dataset.mode);
+  });
 
   $("#tryRun").onclick = runExtract;
   $("#tryExample").onclick = loadExample;
